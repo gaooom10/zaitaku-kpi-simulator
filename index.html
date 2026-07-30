@@ -1,0 +1,647 @@
+<title>在宅医療センター KPI・PL予測シミュレーター</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --bg:#eaeef1; --panel:#ffffff; --panel2:#f4f7f8;
+  --ink:#15242b; --muted:#5c6f77; --faint:#8598a0;
+  --border:#d8e0e4; --border2:#e6ecef;
+  --home:#0e7f86; --home-fill:rgba(14,127,134,.16);
+  --fac:#c07724; --fac-fill:rgba(192,119,36,.18);
+  --rev:#3d4fa0; --rev2:#8b97cf;
+  --accent:#0e7f86; --accent-ink:#ffffff; --danger:#b4453a;
+  --shadow:0 1px 2px rgba(20,40,50,.06),0 6px 20px rgba(20,40,50,.06);
+  --radius:14px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0d1417; --panel:#151f23; --panel2:#111a1d;
+    --ink:#e7eef0; --muted:#9aabb1; --faint:#6d8087;
+    --border:#26343a; --border2:#1e2a2f;
+    --home:#2fb4bb; --home-fill:rgba(47,180,187,.20);
+    --fac:#e0a24f; --fac-fill:rgba(224,162,79,.20);
+    --rev:#8492d8; --rev2:#4f5c9e;
+    --accent:#2fb4bb; --accent-ink:#07211f; --danger:#e8776b;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 26px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="light"]{
+  --bg:#eaeef1;--panel:#ffffff;--panel2:#f4f7f8;--ink:#15242b;--muted:#5c6f77;--faint:#8598a0;
+  --border:#d8e0e4;--border2:#e6ecef;--home:#0e7f86;--home-fill:rgba(14,127,134,.16);
+  --fac:#c07724;--fac-fill:rgba(192,119,36,.18);--rev:#3d4fa0;--rev2:#8b97cf;
+  --accent:#0e7f86;--accent-ink:#fff;--danger:#b4453a;
+  --shadow:0 1px 2px rgba(20,40,50,.06),0 6px 20px rgba(20,40,50,.06);
+}
+:root[data-theme="dark"]{
+  --bg:#0d1417;--panel:#151f23;--panel2:#111a1d;--ink:#e7eef0;--muted:#9aabb1;--faint:#6d8087;
+  --border:#26343a;--border2:#1e2a2f;--home:#2fb4bb;--home-fill:rgba(47,180,187,.20);
+  --fac:#e0a24f;--fac-fill:rgba(224,162,79,.20);--rev:#8492d8;--rev2:#4f5c9e;
+  --accent:#2fb4bb;--accent-ink:#07211f;--danger:#e8776b;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 26px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",YuGothic,"Noto Sans JP",Meiryo,system-ui,sans-serif;
+  line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1200px;margin:0 auto;padding:26px 20px 60px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px 22px;margin-bottom:22px}
+.brand{display:flex;flex-direction:column;gap:3px}
+.eyebrow{font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:700}
+h1{font-size:clamp(21px,2.6vw,29px);margin:0;font-weight:800;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;max-width:60ch}
+.spanbtns{margin-left:auto;display:flex;gap:6px;background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:4px}
+.spanbtns button{border:none;background:transparent;color:var(--muted);font-family:inherit;font-weight:700;font-size:13px;padding:7px 15px;border-radius:8px;cursor:pointer}
+.spanbtns button.on{background:var(--accent);color:var(--accent-ink)}
+.grid{display:grid;grid-template-columns:340px minmax(0,1fr);gap:20px;align-items:start}
+@media(max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.controls{padding:20px}
+.ctitle{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700;margin:0 0 14px}
+.field{margin-bottom:18px}
+.field:last-child{margin-bottom:0}
+.flabel{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;font-weight:600;margin-bottom:7px}
+.fval{font-variant-numeric:tabular-nums;color:var(--accent);font-weight:800;font-size:15px}
+.fval small{color:var(--muted);font-weight:600;font-size:11px}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:5px;background:var(--border);outline:none;margin:6px 0 2px;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);border:3px solid var(--panel);box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--accent);border:3px solid var(--panel);cursor:pointer}
+.ticks{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);font-variant-numeric:tabular-nums}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg.five button{flex:1 1 17%;min-width:0;padding:7px 2px;font-size:12px}
+.seg button{flex:1;border:1px solid var(--border);background:var(--panel2);color:var(--ink);padding:8px 4px;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:.12s;line-height:1.3}
+.seg button:hover{border-color:var(--accent)}
+.seg button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.seg button b{display:block;font-size:13px}
+.seg button small{font-weight:600;opacity:.7;font-size:10px}
+.numrow{display:flex;gap:10px}
+.numrow .field{flex:1}
+.numbox{display:flex;align-items:center;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--panel2)}
+.numbox button{width:34px;border:none;background:transparent;color:var(--muted);font-size:18px;cursor:pointer;font-family:inherit;padding:6px 0}
+.numbox button:hover{color:var(--accent)}
+.numbox input{flex:1;border:none;background:transparent;color:var(--ink);text-align:center;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;width:100%;font-family:inherit;padding:7px 0}
+.numbox input:focus{outline:none}
+.pricebox{display:flex;align-items:center;border:1px solid var(--border);border-radius:9px;background:var(--panel2);padding:0 10px 0 0;margin-top:2px}
+.pricebox input{flex:1;min-width:0;border:none;background:transparent;color:var(--ink);text-align:right;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;font-family:inherit;padding:8px 6px 8px 10px}
+.pricebox input:focus{outline:none}
+.pricebox span{color:var(--muted);font-size:12px;font-weight:600;flex:none}
+.hint{font-size:11px;color:var(--faint);margin-top:6px;line-height:1.45}
+.depdesc{font-size:11.5px;color:var(--muted);margin-top:7px;background:var(--panel2);border-radius:8px;padding:8px 10px;line-height:1.5}
+.events{margin-top:8px;display:flex;flex-direction:column;gap:7px}
+.evrow{display:flex;align-items:center;gap:6px;font-size:12.5px}
+.evrow input{width:52px;border:1px solid var(--border);background:var(--panel2);border-radius:7px;padding:5px 4px;text-align:center;font-family:inherit;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.evrow .x{margin-left:auto;border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:16px;padding:2px 6px;font-family:inherit}
+.addev{border:1px dashed var(--border);background:transparent;color:var(--accent);border-radius:8px;padding:7px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;width:100%;margin-top:8px}
+.addev:hover{border-color:var(--accent)}
+details.est{margin-top:16px;border-top:1px solid var(--border2);padding-top:14px}
+details.est summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--accent);list-style:none;display:flex;align-items:center;gap:6px}
+details.est summary::-webkit-details-marker{display:none}
+details.est summary::before{content:"▸";transition:.15s}
+details.est[open] summary::before{transform:rotate(90deg)}
+.estbody{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+.estrow{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;gap:10px}
+.estrow input{width:70px;border:1px solid var(--border);background:var(--panel2);border-radius:8px;padding:6px;text-align:center;font-family:inherit;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.estbtn{background:var(--accent);color:var(--accent-ink);border:none;border-radius:9px;padding:9px;font-weight:700;font-family:inherit;cursor:pointer;font-size:13px}
+.estout{background:var(--panel2);border-radius:9px;padding:11px 12px;font-size:12.5px;line-height:1.6;display:none}
+.estout.show{display:block}
+.estout b{font-size:20px;color:var(--accent);font-variant-numeric:tabular-nums}
+#estmode{margin:2px 0 4px}
+#estmode button{padding:6px 4px;font-size:11.5px}
+.mgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-top:6px}
+.mgrid input{width:100%;border:1px solid var(--border);background:var(--panel2);border-radius:6px;padding:5px 2px;text-align:center;font-family:inherit;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;font-size:12px}
+.applybtn{margin-top:8px;border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:8px;padding:6px 12px;font-weight:700;font-family:inherit;cursor:pointer;font-size:12px}
+.main{display:flex;flex-direction:column;gap:20px;min-width:0}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:900px){.tiles{grid-template-columns:repeat(2,1fr)}}
+.tile{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 15px;box-shadow:var(--shadow)}
+.tile .k{font-size:11.5px;color:var(--muted);font-weight:600;margin-bottom:5px;display:flex;align-items:center;gap:6px}
+.tile .v{font-size:clamp(19px,2.3vw,25px);font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.01em;line-height:1.1}
+.tile .u{font-size:12px;color:var(--muted);font-weight:600;margin-left:2px}
+.tile .d{font-size:11px;color:var(--faint);margin-top:4px;font-variant-numeric:tabular-nums}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+.chartcard{padding:18px 18px 12px}
+.chhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-wrap:wrap;gap:8px}
+.chtitle{font-size:14px;font-weight:700}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);font-weight:600;flex-wrap:wrap}
+.legend span{display:flex;align-items:center;gap:6px}
+svg{display:block;width:100%;height:auto;overflow:visible}
+.chartscroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
+.chartscroll svg{width:auto;height:250px;max-width:none;overflow:visible}
+.yearsum{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px}
+@media(max-width:560px){.yearsum{grid-template-columns:1fr}}
+.ys{background:var(--panel2);border:1px solid var(--border2);border-radius:10px;padding:12px 14px}
+.ys .yl{font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:4px}
+.ys .yv{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
+.ys .yd{font-size:11px;color:var(--faint);margin-top:2px;font-variant-numeric:tabular-nums}
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 9px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--border2)}
+th{color:var(--muted);font-weight:600;font-size:11px;position:sticky;top:0;background:var(--panel)}
+td:first-child,th:first-child{text-align:left;font-weight:600;position:sticky;left:0;background:var(--panel);z-index:1}
+tbody tr:hover td{background:var(--panel2)}
+tr.rev td{color:var(--rev);font-weight:700}
+tr.out td{color:var(--fac)}
+tr.tot td{border-top:2px solid var(--border);font-weight:800}
+th.yb,td.yb{border-left:2px solid var(--border)}
+.foot{margin-top:26px;color:var(--faint);font-size:11.5px;line-height:1.6}
+.foot code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:11px}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="eyebrow">在宅医療センター &nbsp;/&nbsp; 事業計画シミュレーション</span>
+      <h1>訪問診療 KPI・PL 予測シミュレーター</h1>
+      <span class="sub">前提を動かすと、患者数と診療報酬（医科・介護）がその場で再計算されます。患者数は平均診療期間に応じた生存曲線（正規分布の重ね合わせ）のコホート積み上げで算出します。</span>
+    </div>
+    <div class="spanbtns" id="span">
+      <button data-y="1" class="on">1年予測</button>
+      <button data-y="3">3年予測</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- ============ CONTROLS ============ -->
+    <aside class="card controls">
+      <p class="ctitle">前提条件の入力</p>
+
+      <div class="field">
+        <div class="flabel"><span>センターの状態</span></div>
+        <div class="seg" id="mode">
+          <button data-m="new">新規立ち上げ</button>
+          <button data-m="running">立ち上げ済み</button>
+        </div>
+        <div class="depdesc" id="modehint"></div>
+      </div>
+
+      <div class="field">
+        <div class="flabel"><span>月あたり新規患者数（基準）</span><span class="fval" id="v-new">10<small> 人/月</small></span></div>
+        <input type="range" id="new" min="1" max="40" step="1" value="10">
+        <div class="ticks"><span>1</span><span>10</span><span>20</span><span>30</span><span>40</span></div>
+      </div>
+
+      <div class="field">
+        <div class="flabel"><span>新規患者数の変化イベント</span></div>
+        <div class="events" id="events"></div>
+        <button class="addev" id="addev">＋ 変化を追加（◯か月目から ±◯人）</button>
+        <div class="hint">例：「7か月目から +3人」で、7か月目以降の月あたり新規患者数が基準+3人に増えます。複数設定でき、効果は累積します。</div>
+      </div>
+
+      <div class="field">
+        <div class="flabel"><span>施設患者の割合</span><span class="fval" id="v-fac">30<small> %</small></span></div>
+        <input type="range" id="facr" min="0" max="100" step="5" value="30">
+        <div class="ticks"><span>0</span><span>50</span><span>100</span></div>
+      </div>
+
+      <div class="field">
+        <div class="flabel"><span>医療依存度（居宅）＝平均診療期間</span></div>
+        <div class="seg five" id="dep">
+          <button data-mu="6"><b>6か月</b><small>末期がん中心</small></button>
+          <button data-mu="9"><b>9か月</b><small>重度中心</small></button>
+          <button data-mu="12"><b>12か月</b><small>混在・標準</small></button>
+          <button data-mu="18"><b>18か月</b><small>慢性中心</small></button>
+          <button data-mu="24"><b>24か月</b><small>老衰中心</small></button>
+        </div>
+        <div class="depdesc" id="depdesc"></div>
+      </div>
+
+      <div class="field">
+        <div class="flabel"><span>在宅療養支援診療所/病院　強化型</span></div>
+        <div class="seg" id="kyoka">
+          <button data-k="bed"><b>あり</b><small>病床あり</small></button>
+          <button data-k="bedless"><b>あり</b><small>病床なし</small></button>
+          <button data-k="none"><b>なし</b><small>基準</small></button>
+        </div>
+      </div>
+
+      <div class="field" id="jujitsu-field">
+        <div class="flabel"><span>在宅医療充実体制加算</span></div>
+        <div class="seg" id="jujitsu">
+          <button data-j="yes">あり</button>
+          <button data-j="no">なし</button>
+        </div>
+        <div class="hint" id="pricehint"></div>
+      </div>
+
+      <div class="field">
+        <div class="flabel"><span>単価設定</span></div>
+        <div class="seg" id="pricemode">
+          <button data-pm="auto">自動（強化型に連動）</button>
+          <button data-pm="custom">任意単価を入力</button>
+        </div>
+        <div id="priceinputs" style="display:none">
+          <div class="numrow" style="margin-top:10px">
+            <div class="field" style="margin-bottom:0">
+              <div class="flabel"><span>居宅 単価</span></div>
+              <div class="pricebox"><input type="number" id="pHome" value="90000" min="0" step="1000"><span>円</span></div>
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <div class="flabel"><span>施設 単価</span></div>
+              <div class="pricebox"><input type="number" id="pFac" value="35000" min="0" step="1000"><span>円</span></div>
+            </div>
+          </div>
+          <div class="hint">入力した単価を全期間・全月に適用します（施設単価の立ち上げ／強化型の単価連動は無効になります）。</div>
+        </div>
+      </div>
+
+      <div class="numrow">
+        <div class="field">
+          <div class="flabel"><span>開始時点 在宅</span></div>
+          <div class="numbox"><button data-n="home" data-s="-1">−</button><input type="number" id="p0home" value="25" min="0"><button data-n="home" data-s="1">＋</button></div>
+        </div>
+        <div class="field">
+          <div class="flabel"><span>開始時点 施設</span></div>
+          <div class="numbox"><button data-n="fac" data-s="-1">−</button><input type="number" id="p0fac" value="15" min="0"><button data-n="fac" data-s="1">＋</button></div>
+        </div>
+      </div>
+      <div class="hint" id="p0hint">シミュレーション開始月にすでに診ている実患者数。既存患者は選択した平均診療期間（施設は24か月）に沿って逓減します。</div>
+
+      <details class="est">
+        <summary>平均診療期間を実績から推計する</summary>
+        <div class="estbody">
+          <div class="hint" style="margin-top:0">すでに訪問診療を行っている場合、直近1年の実績から平均診療期間を逆算します。</div>
+          <div class="seg" id="estmode">
+            <button data-e="simple" class="on">簡易（年間累計）</button>
+            <button data-e="monthly">月別実績で精密に</button>
+          </div>
+          <div class="estrow"><span>1年前の実患者数</span><input type="number" id="e-prev" value="30" min="0"></div>
+          <div id="est-simple">
+            <div class="estrow"><span>この1年の累計 新規患者数</span><input type="number" id="e-new" value="120" min="0"></div>
+          </div>
+          <div id="est-monthly" style="display:none">
+            <div class="hint" style="margin-top:0">直近12か月の月別 新規患者数（左上＝12か月前 → 右下＝直近）</div>
+            <div class="mgrid" id="e-months"></div>
+          </div>
+          <div class="estrow"><span>現在の実患者数</span><input type="number" id="e-now" value="95" min="0"></div>
+          <button class="estbtn" id="estrun">推計する</button>
+          <div class="estout" id="estout"></div>
+        </div>
+      </details>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <div class="main">
+      <div class="tiles">
+        <div class="tile">
+          <div class="k" id="t-annual-k">年間 診療報酬 合計</div>
+          <div class="v"><span id="t-annual">–</span><span class="u">万円</span></div>
+          <div class="d" id="t-annual-yen"></div>
+        </div>
+        <div class="tile">
+          <div class="k"><span class="dot" style="background:var(--rev)"></span>うち医科</div>
+          <div class="v"><span id="t-med">–</span><span class="u">万円</span></div>
+          <div class="d" id="t-med-pct"></div>
+        </div>
+        <div class="tile">
+          <div class="k"><span class="dot" style="background:var(--rev2)"></span>うち介護</div>
+          <div class="v"><span id="t-kaigo">–</span><span class="u">万円</span></div>
+          <div class="d" id="t-kaigo-pct"></div>
+        </div>
+        <div class="tile">
+          <div class="k" id="t-pt-k">期末 実患者数</div>
+          <div class="v"><span id="t-pt">–</span><span class="u">人</span></div>
+          <div class="d" id="t-pt-rev"></div>
+        </div>
+      </div>
+
+      <div class="yearsum" id="yearsum" style="display:none"></div>
+
+      <div class="card chartcard">
+        <div class="chhead">
+          <span class="chtitle">実患者数の推移</span>
+          <span class="legend">
+            <span><span class="dot" style="background:var(--home)"></span>居宅</span>
+            <span><span class="dot" style="background:var(--fac)"></span>施設</span>
+            <span><span class="dot" style="background:var(--ink)"></span>合計</span>
+          </span>
+        </div>
+        <div class="chartscroll" id="chart-pt"></div>
+      </div>
+
+      <div class="card chartcard">
+        <div class="chhead">
+          <span class="chtitle">月別 診療報酬（請求額）</span>
+          <span class="legend">
+            <span><span class="dot" style="background:var(--rev)"></span>医科</span>
+            <span><span class="dot" style="background:var(--rev2)"></span>介護</span>
+          </span>
+        </div>
+        <div class="chartscroll" id="chart-rev"></div>
+      </div>
+
+      <div class="card chartcard">
+        <div class="chhead"><span class="chtitle">月次明細</span><span class="legend"><span>患者数=人／金額=円</span></span></div>
+        <div class="tblwrap"><table id="tbl"></table></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="foot">
+    元データ：<code>在宅KPIフォーマット、予測プログラム.xlsx</code>（香徳会 総合診療プロジェクト）の予測ロジックを再現・一般化。
+    患者数は、平均診療期間ごとの生存曲線（正規分布の重ね合わせから導かれる普遍曲線を平均診療期間で伸縮）を用い、毎月の新規患者コホートと開始時点患者を重ね合わせて算出しています。退出数（死亡・終了）は同曲線から導出されます。
+    居宅療養管理指導は実患者数×0.9×2件×3,000円で試算。単価・件数は概算であり実際の請求額とは差異が生じます。
+  </p>
+</div>
+
+<script>
+// universal survival g(t): t=elapsed/mean. j=t*24, grid 0..96 (t=0..4)
+const G=[1.0,0.97783939,0.95569587,0.9335865,0.91152824,0.88953795,0.86763233,0.84582789,0.8241409,0.80258735,0.78118295,0.75994306,0.73888268,0.71801639,0.69735834,0.67692224,0.65672129,0.63676818,0.61707508,0.59765358,0.57851472,0.55966893,0.54112602,0.52289522,0.50498508,0.48757147,0.47015786,0.45342895,0.43670003,0.4206784,0.40465676,0.38935978,0.3740628,0.35950269,0.34494258,0.33112654,0.31731051,0.30424091,0.29117132,0.27884592,0.26652053,0.25493277,0.24334501,0.23248431,0.2216236,0.2114757,0.20132779,0.19187512,0.18242244,0.17397033,0.16551822,0.15706611,0.148614,0.14141395,0.13421391,0.12701386,0.11981381,0.11375554,0.10769726,0.10163898,0.0955807,0.09054562,0.08551053,0.08047545,0.07544036,0.07130695,0.06717354,0.06304013,0.05890672,0.0555551,0.05220349,0.04885188,0.04550026,0.04281589,0.04013151,0.03744714,0.03476276,0.03263914,0.03051553,0.02839191,0.02626829,0.02460888,0.02294947,0.02129007,0.01963066,0.01834988,0.0170691,0.01578832,0.01450754,0.01353112,0.01255469,0.01157827,0.01060184,0.00986657,0.0091313,0.00839603,0.00766076];
+function g(t){ // survival fraction at elapsed/mean = t
+  if(t<=0)return 1;
+  if(t>=5)return 0;
+  if(t>=4)return G[96]*(5-t);
+  const j=t*24, i=Math.floor(j), f=j-i;
+  return G[i]+(G[i+1]-G[i])*f;
+}
+const DEP={
+  6:'末期がんなど、看取りまでの期間が短い患者が中心。入れ替わりが速く、患者数は積み上がりにくい。',
+  9:'がん・重度など比較的短期の患者が中心。',
+  12:'がんと非がんが混在する標準的な在宅。',
+  18:'非がんの慢性疾患が中心で、長期に経過する患者が多い。',
+  24:'老衰・慢性期など、長期に安定して経過する患者が中心。患者数は積み上がりやすい。'
+};
+const state={mode:'new',new:10,facr:30,mu:12,kyoka:'bed',jujitsu:false,home:25,fac:15,years:1,events:[],customPrice:false,pHome:90000,pFac:35000};
+let estMode='simple';
+
+// 自動単価: 基準 居宅8万/施設3万 に強化型・充実体制加算を加算
+function autoPrice(){
+  let h=80000, f=30000;
+  if(state.kyoka==='bedless'){h+=4000; f+=2000;}       // 強化型 病床なし
+  else if(state.kyoka==='bed'){h+=8000; f+=3000;}       // 強化型 病床あり
+  if(state.kyoka!=='none' && state.jujitsu){h+=10000; f+=3000;} // 在宅医療充実体制加算
+  return {h,f};
+}
+
+function intakeAt(t){ // 1-based month
+  // 新規立ち上げ: 開始月(t=1)は既存患者のみで新規0、新規は2か月目から
+  // 立ち上げ済み: 開始月から新規を計上
+  if(state.mode==='new' && t<=1)return 0;
+  let v=state.new;
+  for(const e of state.events){ if(e.month<=t) v+=e.delta; }
+  return Math.max(0,v);
+}
+function compute(){
+  const M=state.years*12;
+  const muH=state.mu, muF=24;
+  const hr=(100-state.facr)/100, fr=state.facr/100;
+  const custom=state.customPrice;
+  const ap=autoPrice();
+  const pH=custom?state.pHome:ap.h;
+  const rows=[];
+  for(let t=1;t<=M;t++){
+    let hc=0,fc=0;
+    for(let s=1;s<=t;s++){
+      const inn=intakeAt(s), age=t-s+1;
+      hc+=inn*hr*g(age/muH);
+      fc+=inn*fr*g(age/muF);
+    }
+    const home=hc+state.home*g((t-1)/muH);
+    const fac =fc+state.fac*g((t-1)/muF);
+    // 施設単価: 任意単価入力時はそれを全期間に適用。自動時は新規立ち上げの開始3か月を基準(3.0万)で立ち上げ
+    const ramp=(!custom && state.mode==='new'&&t<=3);
+    const pF=custom?state.pFac:(ramp?30000:ap.f);
+    const med=pH*home+pF*fac;
+    const kaigo=(home+fac)*0.9*2*3000;
+    rows.push({t,home,fac,total:home+fac,med,kaigo,rev:med+kaigo,intake:intakeAt(t)});
+  }
+  for(let i=1;i<rows.length;i++){ rows[i].out=rows[i].intake-(rows[i].total-rows[i-1].total); }
+  rows[0].out=0;
+  return rows;
+}
+
+const nf=(v,d=0)=>v.toLocaleString('ja-JP',{minimumFractionDigits:d,maximumFractionDigits:d});
+const man=(yen)=>nf(yen/10000,0);
+const mlabel=(i)=>((i%12)+1)+'月';
+
+// -------- charts --------
+function chartPatients(rows){
+  const n=rows.length, H=250, pl=44,pr=16,pt=16,pb=30, PER=56, W=pl+pr+PER*n;
+  const iw=W-pl-pr, ih=H-pt-pb;
+  const max=Math.max(...rows.map(r=>r.total),1)*1.08;
+  const x=i=>pl+iw*i/(n-1);
+  const y=v=>pt+ih*(1-v/max);
+  const path=sel=>rows.map((r,i)=>`${i?'L':'M'}${x(i).toFixed(1)} ${y(sel(r)).toFixed(1)}`).join(' ');
+  const area=sel=>`${path(sel)} L${x(n-1).toFixed(1)} ${y(0)} L${x(0).toFixed(1)} ${y(0)} Z`;
+  let grid='',lbl='';
+  for(let gg=0;gg<=4;gg++){const val=max*gg/4,yy=y(val);
+    grid+=`<line x1="${pl}" y1="${yy.toFixed(1)}" x2="${W-pr}" y2="${yy.toFixed(1)}" stroke="var(--border2)"/>`;
+    lbl+=`<text x="${pl-8}" y="${(yy+4).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--faint)">${Math.round(val)}</text>`;}
+  let xlab='',ydiv='';
+  rows.forEach((r,i)=>{
+    xlab+=`<text x="${x(i).toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--faint)">${mlabel(i)}</text>`;});
+  if(state.years>1){for(let yb=12;yb<n;yb+=12){const xx=x(yb-0.5);
+    ydiv+=`<line x1="${xx.toFixed(1)}" y1="${pt}" x2="${xx.toFixed(1)}" y2="${pt+ih}" stroke="var(--border)" stroke-dasharray="3 3"/>`;
+    ydiv+=`<text x="${(xx+4).toFixed(1)}" y="${pt+11}" font-size="10" fill="var(--faint)">${yb/12+1}年目</text>`;}}
+  const endpt=(sel,c)=>`<circle cx="${x(n-1).toFixed(1)}" cy="${y(sel(rows[n-1])).toFixed(1)}" r="4" fill="${c}"/>`;
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="実患者数の推移">
+    ${grid}${ydiv}${lbl}${xlab}
+    <path d="${area(r=>r.fac)}" fill="var(--fac-fill)" stroke="none"/>
+    <path d="${area(r=>r.home)}" fill="var(--home-fill)" stroke="none"/>
+    <path d="${path(r=>r.home)}" fill="none" stroke="var(--home)" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="${path(r=>r.fac)}" fill="none" stroke="var(--fac)" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="${path(r=>r.total)}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/>
+    ${endpt(r=>r.home,'var(--home)')}${endpt(r=>r.fac,'var(--fac)')}${endpt(r=>r.total,'var(--ink)')}
+  </svg>`;
+}
+function chartRevenue(rows){
+  const n=rows.length, H=250, pl=52,pr=16,pt=16,pb=30, PER=56, W=pl+pr+PER*n;
+  const iw=W-pl-pr, ih=H-pt-pb;
+  const max=Math.max(...rows.map(r=>r.rev),1)*1.08;
+  const bw=Math.max(3,iw/n*0.62);
+  const x=i=>pl+iw*(i+0.5)/n, y=v=>pt+ih*(1-v/max);
+  let grid='',lbl='';
+  for(let gg=0;gg<=4;gg++){const val=max*gg/4,yy=y(val);
+    grid+=`<line x1="${pl}" y1="${yy.toFixed(1)}" x2="${W-pr}" y2="${yy.toFixed(1)}" stroke="var(--border2)"/>`;
+    lbl+=`<text x="${pl-8}" y="${(yy+4).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--faint)">${man(val)}</text>`;}
+  let bars='',xlab='',ydiv='';
+  rows.forEach((r,i)=>{const cx=x(i),x0=cx-bw/2,ym=y(r.med),yk=y(r.rev),y0=y(0);
+    bars+=`<rect x="${x0.toFixed(1)}" y="${ym.toFixed(1)}" width="${bw.toFixed(1)}" height="${(y0-ym).toFixed(1)}" fill="var(--rev)" rx="1.5"/>`;
+    bars+=`<rect x="${x0.toFixed(1)}" y="${yk.toFixed(1)}" width="${bw.toFixed(1)}" height="${(ym-yk).toFixed(1)}" fill="var(--rev2)" rx="1.5"/>`;
+    xlab+=`<text x="${cx.toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--faint)">${mlabel(i)}</text>`;});
+  if(state.years>1){for(let yb=12;yb<n;yb+=12){const xx=pl+iw*yb/n;
+    ydiv+=`<line x1="${xx.toFixed(1)}" y1="${pt}" x2="${xx.toFixed(1)}" y2="${pt+ih}" stroke="var(--border)" stroke-dasharray="3 3"/>`;}}
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="月別診療報酬">
+    ${grid}${ydiv}${lbl}${bars}${xlab}
+    <text x="${pl-8}" y="12" text-anchor="end" font-size="10" fill="var(--faint)">万円</text></svg>`;
+}
+
+// -------- render --------
+function render(){
+  const rows=compute();
+  const n=rows.length;
+  const sum=k=>rows.reduce((a,r)=>a+r[k],0);
+  const aMed=sum('med'),aKaigo=sum('kaigo'),aTot=aMed+aKaigo;
+  const last=rows[n-1];
+  document.getElementById('t-annual-k').textContent=state.years>1?'3年累計 診療報酬 合計':'年間 診療報酬 合計';
+  document.getElementById('t-pt-k').textContent='期末 実患者数';
+  document.getElementById('t-annual').textContent=man(aTot);
+  document.getElementById('t-annual-yen').textContent='¥'+nf(Math.round(aTot));
+  document.getElementById('t-med').textContent=man(aMed);
+  document.getElementById('t-med-pct').textContent=(aMed/aTot*100).toFixed(0)+'%';
+  document.getElementById('t-kaigo').textContent=man(aKaigo);
+  document.getElementById('t-kaigo-pct').textContent=(aKaigo/aTot*100).toFixed(0)+'%';
+  document.getElementById('t-pt').textContent=nf(Math.round(last.total));
+  document.getElementById('t-pt-rev').textContent='最終月 ¥'+nf(Math.round(last.rev));
+
+  // year summary (3yr)
+  const ys=document.getElementById('yearsum');
+  if(state.years>1){
+    ys.style.display='';
+    let html='';
+    for(let yi=0;yi<state.years;yi++){
+      const seg=rows.slice(yi*12,yi*12+12);
+      const rev=seg.reduce((a,r)=>a+r.rev,0);
+      const endPt=Math.round(seg[seg.length-1].total);
+      html+=`<div class="ys"><div class="yl">${yi+1}年目 診療報酬</div><div class="yv">${man(rev)}<span class="u" style="font-size:12px;color:var(--muted)"> 万円</span></div><div class="yd">期末 ${endPt} 人</div></div>`;
+    }
+    ys.innerHTML=html;
+  } else ys.style.display='none';
+
+  document.getElementById('chart-pt').innerHTML=chartPatients(rows);
+  document.getElementById('chart-rev').innerHTML=chartRevenue(rows);
+
+  // table
+  const yb=i=>(state.years>1&&i>0&&i%12===0)?' yb':'';
+  const head='<thead><tr><th>項目</th>'+rows.map((r,i)=>`<th class="${yb(i).trim()}">${state.years>1?(Math.floor(i/12)+1)+'年'+((i%12)+1)+'月':(i+1)+'月'}</th>`).join('')+'<th>合計</th></tr></thead>';
+  const rowP=(label,fn,cls='')=>`<tr class="${cls}"><td>${label}</td>${rows.map((r,i)=>`<td class="${yb(i).trim()}">${fn(r)}</td>`).join('')}<td></td></tr>`;
+  const rowM=(label,fn,tot,cls='')=>`<tr class="${cls}"><td>${label}</td>${rows.map((r,i)=>`<td class="${yb(i).trim()}">${nf(Math.round(fn(r)))}</td>`).join('')}<td>${nf(Math.round(tot))}</td></tr>`;
+  const body='<tbody>'+
+    rowP('実患者数 居宅',r=>nf(Math.round(r.home)))+
+    rowP('実患者数 施設',r=>nf(Math.round(r.fac)))+
+    rowP('実患者数 合計',r=>nf(Math.round(r.total)))+
+    rowP('新規（人）',r=>nf(Math.round(r.intake)))+
+    rowP('退出（人）',r=>nf(Math.round(r.out)),'out')+
+    rowM('医科（円）',r=>r.med,aMed,'rev')+
+    rowM('介護（円）',r=>r.kaigo,aKaigo,'rev')+
+    rowM('診療報酬 合計',r=>r.rev,aTot,'tot rev')+
+    '</tbody>';
+  document.getElementById('tbl').innerHTML=head+body;
+  syncControls();
+}
+function renderEvents(){
+  const box=document.getElementById('events');
+  box.innerHTML=state.events.map((e,i)=>
+    `<div class="evrow"><input type="number" data-i="${i}" data-f="month" value="${e.month}" min="1" max="${state.years*12}"> か月目から <input type="number" data-i="${i}" data-f="delta" value="${e.delta}"> 人 <button class="x" data-del="${i}">✕</button></div>`
+  ).join('');
+  box.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',ev=>{
+    const i=+ev.target.dataset.i,f=ev.target.dataset.f;
+    state.events[i][f]=Math.round(+ev.target.value||0);render();
+  }));
+  box.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{
+    state.events.splice(+b.dataset.del,1);renderEvents();render();
+  }));
+}
+function syncControls(){
+  document.getElementById('v-new').innerHTML=state.new+'<small> 人/月</small>';
+  document.getElementById('v-fac').innerHTML=state.facr+'<small> %</small>';
+  document.getElementById('new').value=state.new;
+  document.getElementById('facr').value=state.facr;
+  document.getElementById('p0home').value=state.home;
+  document.getElementById('p0fac').value=state.fac;
+  document.querySelectorAll('#dep button').forEach(b=>b.classList.toggle('on',+b.dataset.mu===state.mu));
+  document.querySelectorAll('#kyoka button').forEach(b=>b.classList.toggle('on',b.dataset.k===state.kyoka));
+  document.querySelectorAll('#jujitsu button').forEach(b=>b.classList.toggle('on',b.dataset.j===(state.jujitsu?'yes':'no')));
+  document.getElementById('jujitsu-field').style.display=state.kyoka==='none'?'none':'';
+  const ap=autoPrice();
+  document.getElementById('pricehint').innerHTML=`基準 居宅8.0万/施設3.0万、強化型病床なし +居宅0.4万/施設0.2万、病床あり +居宅0.8万/施設0.3万、充実体制加算 +居宅1.0万/施設0.3万。<br>現在の自動単価：<strong>居宅 ${(ap.h/10000).toFixed(1)}万円 / 施設 ${(ap.f/10000).toFixed(1)}万円</strong>${state.mode==='new'?'（新規立ち上げは施設のみ開始3か月間は基準3.0万で立ち上げ）':''}`;
+  document.querySelectorAll('#span button').forEach(b=>b.classList.toggle('on',+b.dataset.y===state.years));
+  document.querySelectorAll('#mode button').forEach(b=>b.classList.toggle('on',b.dataset.m===state.mode));
+  document.querySelectorAll('#pricemode button').forEach(b=>b.classList.toggle('on',(b.dataset.pm==='custom')===state.customPrice));
+  document.getElementById('priceinputs').style.display=state.customPrice?'':'none';
+  document.getElementById('pHome').value=state.pHome;
+  document.getElementById('pFac').value=state.pFac;
+  document.getElementById('depdesc').textContent='平均診療期間 約'+state.mu+'か月：'+DEP[state.mu];
+  document.getElementById('modehint').textContent = state.mode==='new'
+    ? '新規立ち上げ：開始月は既存患者のみ・新規は2か月目から計上し、施設単価は開始3か月間 3.0万円で立ち上げます。'
+    : '立ち上げ済み：開始月から新規患者を計上し、施設単価は開始月から通常単価です。下の「開始時点」に現在の実患者数を入力してください。';
+  document.getElementById('p0hint').textContent = state.mode==='new'
+    ? 'シミュレーション開始月にすでに診ている実患者数（新規立ち上げなら通常は0〜少数）。既存患者は平均診療期間（施設は24か月）に沿って逓減します。'
+    : '現在の実患者数を在宅・施設に分けて入力（推計ツールから一括反映も可能）。既存患者は平均診療期間（施設は24か月）に沿って逓減します。';
+}
+
+// -------- estimator --------
+function renderMonths(){
+  const box=document.getElementById('e-months');
+  if(box.children.length)return;
+  let h='';
+  for(let i=0;i<12;i++)h+=`<input type="number" id="em-${i}" value="10" min="0" title="${i+1}か月目">`;
+  box.innerHTML=h;
+}
+function estimate(){
+  const Pp=+document.getElementById('e-prev').value||0;
+  const Pn=+document.getElementById('e-now').value||0;
+  let model;
+  if(estMode==='monthly'){
+    const arr=[];for(let i=0;i<12;i++)arr.push(+document.getElementById('em-'+i).value||0);
+    // Pn = Pp*g(12/mu) + sum_{s=1..12} arr[s-1]*g((12-s+1)/mu)
+    model=mu=>{let acc=Pp*g(12/mu);for(let s=1;s<=12;s++)acc+=arr[s-1]*g((12-s+1)/mu);return acc;};
+  }else{
+    const N=+document.getElementById('e-new').value||0;
+    model=mu=>{let acc=0;for(let j=1;j<=12;j++)acc+=g(j/mu);return Pp*g(12/mu)+(N/12)*acc;};
+  }
+  let lo=3,hi=60;
+  const fLo=model(lo)-Pn, fHi=model(hi)-Pn;
+  const out=document.getElementById('estout');
+  let mu, note='';
+  if(fLo>0){mu=lo;note='実績に対し患者数の残存が少なめです。推計は下限（約3か月）付近です。';}
+  else if(fHi<0){mu=hi;note='実績に対し患者数の残存が非常に多く、推計は上限（約60か月）を超えます。';}
+  else{for(let it=0;it<60;it++){const mid=(lo+hi)/2;(model(mid)-Pn>0)?hi=mid:lo=mid;}mu=(lo+hi)/2;}
+  const stages=[6,9,12,18,24];
+  const nearest=stages.reduce((a,b)=>Math.abs(b-mu)<Math.abs(a-mu)?b:a);
+  out.className='estout show';
+  out.innerHTML=`推計 平均診療期間 <b>${mu.toFixed(1)}</b> か月<br>`+
+    (note?`<span style="color:var(--muted)">${note}</span><br>`:'')+
+    `最も近い段階：<strong>${nearest}か月</strong>`+
+    `<button class="applybtn" id="applymu">この段階を適用</button>`+
+    `<button class="applybtn" id="applypt">現在患者を開始時点に反映</button>`;
+  document.getElementById('applymu').addEventListener('click',()=>{state.mu=nearest;render();});
+  document.getElementById('applypt').addEventListener('click',()=>{
+    state.fac=Math.round(Pn*state.facr/100);
+    state.home=Math.round(Pn-state.fac);
+    if(state.mode==='new'){state.mode='running';}
+    render();
+  });
+}
+
+// -------- events wiring --------
+document.getElementById('new').addEventListener('input',e=>{state.new=+e.target.value;render();});
+document.getElementById('facr').addEventListener('input',e=>{state.facr=+e.target.value;render();});
+document.querySelectorAll('#dep button').forEach(b=>b.addEventListener('click',()=>{state.mu=+b.dataset.mu;render();}));
+document.querySelectorAll('#kyoka button').forEach(b=>b.addEventListener('click',()=>{state.kyoka=b.dataset.k;render();}));
+document.querySelectorAll('#jujitsu button').forEach(b=>b.addEventListener('click',()=>{state.jujitsu=b.dataset.j==='yes';render();}));
+document.querySelectorAll('#span button').forEach(b=>b.addEventListener('click',()=>{state.years=+b.dataset.y;renderEvents();render();}));
+document.querySelectorAll('#mode button').forEach(b=>b.addEventListener('click',()=>{state.mode=b.dataset.m;render();}));
+document.querySelectorAll('#pricemode button').forEach(b=>b.addEventListener('click',()=>{state.customPrice=(b.dataset.pm==='custom');render();}));
+document.getElementById('pHome').addEventListener('input',e=>{state.pHome=Math.max(0,+e.target.value||0);render();});
+document.getElementById('pFac').addEventListener('input',e=>{state.pFac=Math.max(0,+e.target.value||0);render();});
+document.querySelectorAll('#estmode button').forEach(b=>b.addEventListener('click',()=>{
+  estMode=b.dataset.e;
+  document.querySelectorAll('#estmode button').forEach(x=>x.classList.toggle('on',x.dataset.e===estMode));
+  document.getElementById('est-simple').style.display=estMode==='simple'?'':'none';
+  document.getElementById('est-monthly').style.display=estMode==='monthly'?'':'none';
+  if(estMode==='monthly')renderMonths();
+}));
+document.getElementById('p0home').addEventListener('input',e=>{state.home=Math.max(0,+e.target.value||0);render();});
+document.getElementById('p0fac').addEventListener('input',e=>{state.fac=Math.max(0,+e.target.value||0);render();});
+document.querySelectorAll('.numbox button').forEach(b=>b.addEventListener('click',()=>{
+  const k=b.dataset.n==='home'?'home':'fac';state[k]=Math.max(0,state[k]+(+b.dataset.s));render();}));
+document.getElementById('addev').addEventListener('click',()=>{
+  const mo=Math.min(state.years*12,Math.max(1,(state.events.length?state.events[state.events.length-1].month+3:6)));
+  state.events.push({month:mo,delta:3});renderEvents();render();});
+document.getElementById('estrun').addEventListener('click',estimate);
+
+// -------- synchronized horizontal scroll across the 2 charts + table --------
+function setupSync(){
+  const els=[document.getElementById('chart-pt'),document.getElementById('chart-rev'),document.querySelector('.tblwrap')].filter(Boolean);
+  let lock=false;
+  els.forEach(src=>src.addEventListener('scroll',()=>{
+    if(lock)return; lock=true;
+    const max=src.scrollWidth-src.clientWidth;
+    const frac=max>0?src.scrollLeft/max:0;
+    els.forEach(t=>{ if(t!==src){ const m=t.scrollWidth-t.clientWidth; t.scrollLeft=frac*m; } });
+    requestAnimationFrame(()=>{lock=false;});
+  },{passive:true}));
+}
+
+renderEvents();
+render();
+setupSync();
+</script>
