@@ -1,3 +1,4 @@
+<meta charset="UTF-8">
 <title>在宅医療センター KPI・PL予測シミュレーター</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
@@ -88,6 +89,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .events{margin-top:8px;display:flex;flex-direction:column;gap:7px}
 .evrow{display:flex;align-items:center;gap:6px;font-size:12.5px}
 .evrow input{width:52px;border:1px solid var(--border);background:var(--panel2);border-radius:7px;padding:5px 4px;text-align:center;font-family:inherit;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.evnote{font-size:11px;color:var(--danger);font-weight:700}
 .evrow .x{margin-left:auto;border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:16px;padding:2px 6px;font-family:inherit}
 .addev{border:1px dashed var(--border);background:transparent;color:var(--accent);border-radius:8px;padding:7px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;width:100%;margin-top:8px}
 .addev:hover{border-color:var(--accent)}
@@ -103,6 +105,22 @@ details.est[open] summary::before{transform:rotate(90deg)}
 .estout{background:var(--panel2);border-radius:9px;padding:11px 12px;font-size:12.5px;line-height:1.6;display:none}
 .estout.show{display:block}
 .estout b{font-size:20px;color:var(--accent);font-variant-numeric:tabular-nums}
+.profilerow{display:grid;grid-template-columns:minmax(0,1fr) 118px;gap:10px;align-items:center;font-size:12.5px}
+.profilerow label{line-height:1.4}
+.profileinput{display:flex;align-items:center;border:1px solid var(--border);border-radius:8px;background:var(--panel2);overflow:hidden}
+.profileinput input{width:100%;min-width:0;border:none;background:transparent;color:var(--ink);text-align:right;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;font-family:inherit;padding:7px 5px 7px 8px}
+.profileinput input:focus{outline:none}
+.profileinput:focus-within,.profileconfirm:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
+.profileinput span{color:var(--muted);font-size:11px;font-weight:600;padding-right:8px;white-space:nowrap}
+.profilewarning{display:none;border:1px solid color-mix(in srgb,var(--danger) 35%,var(--border));background:color-mix(in srgb,var(--danger) 8%,var(--panel2));color:var(--danger);border-radius:8px;padding:8px 10px;font-size:11.5px;line-height:1.5}
+.profilewarning.show{display:block}
+.profileconfirm{display:flex;align-items:flex-start;gap:8px;background:var(--panel2);border:1px solid var(--border2);border-radius:8px;padding:9px 10px;font-size:11.5px;font-weight:600;line-height:1.5;cursor:pointer}
+.profileconfirm input{margin-top:2px;accent-color:var(--accent);flex:none}
+.profileconfirm:has(input:disabled){opacity:.58;cursor:not-allowed}
+.profilesubtitle{font-size:11px;letter-spacing:.08em;color:var(--faint);font-weight:700;margin:2px 0 -2px}
+.profilesum{grid-template-columns:repeat(4,1fr)}
+@media(max-width:720px){.profilesum{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:460px){.profilerow{grid-template-columns:1fr}.profileinput{max-width:180px}.profilesum{grid-template-columns:1fr}}
 #estmode{margin:2px 0 4px}
 #estmode button{padding:6px 4px;font-size:11.5px}
 .mgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-top:6px}
@@ -254,6 +272,37 @@ th.yb,td.yb{border-left:2px solid var(--border)}
       </div>
       <div class="hint" id="p0hint">シミュレーション開始月にすでに診ている実患者数。既存患者は選択した平均診療期間（施設は24か月）に沿って逓減します。</div>
 
+      <details class="est" id="profile">
+        <summary>患者構成・追加収益を反映する（任意）</summary>
+        <div class="estbody">
+          <div class="hint" style="margin-top:0">直近1か月の集計値を4つだけ入力します。患者名や患者別台帳は不要です。入力値は保存されず、再読み込みで0に戻ります。すべて0なら従来の試算から変わりません。</div>
+          <p class="profilesubtitle">収益へ反映する入力</p>
+          <div class="profilerow">
+            <label for="profile-addon">基本単価に含めていない追加収益<br><span class="hint">レセコン等の集計にある加算・材料の直近月合計</span></label>
+            <div class="profileinput"><input type="number" id="profile-addon" value="0" min="0" step="1000" inputmode="numeric"><span>円/月</span></div>
+          </div>
+          <p class="profilesubtitle">業務量の参考指標（収益計算には使用しません）</p>
+          <div class="profilerow">
+            <label for="profile-device">デバイス管理患者の実人数<br><span class="hint">同じ患者の複数デバイスは1人として集計</span></label>
+            <div class="profileinput"><input type="number" id="profile-device" value="0" min="0" step="1" inputmode="numeric"><span>人</span></div>
+          </div>
+          <div class="profilerow">
+            <label for="profile-emergency">緊急往診の実績</label>
+            <div class="profileinput"><input type="number" id="profile-emergency" value="0" min="0" step="1" inputmode="numeric"><span>件/月</span></div>
+          </div>
+          <div class="profilerow">
+            <label for="profile-terminal">看取りの実績<br><span class="hint">加算の算定件数ではなく実施件数</span></label>
+            <div class="profileinput"><input type="number" id="profile-terminal" value="0" min="0" step="1" inputmode="numeric"><span>件/月</span></div>
+          </div>
+          <label class="profileconfirm" for="profile-apply">
+            <input type="checkbox" id="profile-apply">
+            <span>基本単価と重複しないことを確認し、この単月実績の水準が将来も続く前提で予測へ反映する</span>
+          </label>
+          <div class="profilewarning" id="profile-warning" aria-live="polite"></div>
+          <div class="estout show" id="profile-derived" aria-live="polite"></div>
+        </div>
+      </details>
+
       <details class="est">
         <summary>平均診療期間を実績から推計する</summary>
         <div class="estbody">
@@ -262,17 +311,17 @@ th.yb,td.yb{border-left:2px solid var(--border)}
             <button data-e="simple" class="on">簡易（年間累計）</button>
             <button data-e="monthly">月別実績で精密に</button>
           </div>
-          <div class="estrow"><span>1年前の実患者数</span><input type="number" id="e-prev" value="30" min="0"></div>
+          <div class="estrow"><span>1年前の実患者数</span><input type="number" id="e-prev" value="30" min="0" step="1"></div>
           <div id="est-simple">
-            <div class="estrow"><span>この1年の累計 新規患者数</span><input type="number" id="e-new" value="120" min="0"></div>
+            <div class="estrow"><span>この1年の累計 新規患者数</span><input type="number" id="e-new" value="120" min="0" step="1"></div>
           </div>
           <div id="est-monthly" style="display:none">
             <div class="hint" style="margin-top:0">直近12か月の月別 新規患者数（左上＝12か月前 → 右下＝直近）</div>
             <div class="mgrid" id="e-months"></div>
           </div>
-          <div class="estrow"><span>現在の実患者数</span><input type="number" id="e-now" value="95" min="0"></div>
+          <div class="estrow"><span>現在の実患者数</span><input type="number" id="e-now" value="95" min="0" step="1"></div>
           <button class="estbtn" id="estrun">推計する</button>
-          <div class="estout" id="estout"></div>
+          <div class="estout" id="estout" aria-live="polite"></div>
         </div>
       </details>
     </aside>
@@ -281,7 +330,7 @@ th.yb,td.yb{border-left:2px solid var(--border)}
     <div class="main">
       <div class="tiles">
         <div class="tile">
-          <div class="k" id="t-annual-k">年間 診療報酬 合計</div>
+          <div class="k" id="t-annual-k">年間 診療報酬 試算</div>
           <div class="v"><span id="t-annual">–</span><span class="u">万円</span></div>
           <div class="d" id="t-annual-yen"></div>
         </div>
@@ -302,6 +351,7 @@ th.yb,td.yb{border-left:2px solid var(--border)}
         </div>
       </div>
 
+      <div class="yearsum profilesum" id="profilesum" style="display:none"></div>
       <div class="yearsum" id="yearsum" style="display:none"></div>
 
       <div class="card chartcard">
@@ -318,7 +368,7 @@ th.yb,td.yb{border-left:2px solid var(--border)}
 
       <div class="card chartcard">
         <div class="chhead">
-          <span class="chtitle">月別 診療報酬（請求額）</span>
+          <span class="chtitle">月別 診療報酬（モデル試算）</span>
           <span class="legend">
             <span><span class="dot" style="background:var(--rev)"></span>医科</span>
             <span><span class="dot" style="background:var(--rev2)"></span>介護</span>
@@ -337,7 +387,8 @@ th.yb,td.yb{border-left:2px solid var(--border)}
   <p class="foot">
     元データ：<code>在宅KPIフォーマット、予測プログラム.xlsx</code>（香徳会 総合診療プロジェクト）の予測ロジックを再現・一般化。
     患者数は、平均診療期間ごとの生存曲線（正規分布の重ね合わせから導かれる普遍曲線を平均診療期間で伸縮）を用い、毎月の新規患者コホートと開始時点患者を重ね合わせて算出しています。退出数（死亡・終了）は同曲線から導出されます。
-    居宅療養管理指導は実患者数×0.9×2件×3,000円で試算。単価・件数は概算であり実際の請求額とは差異が生じます。
+    居宅療養管理指導は実患者数×0.9×2件×3,000円で試算。任意の追加収益と業務件数は、管理者が明示確認した場合のみ、入力月の開始時点患者数で1人あたりに換算し、同じ比率が続く前提で予測患者数に連動します。
+    本ツールは算定可否や収益を保証せず、単価・件数は概算であり実際の請求額とは差異が生じます。患者個人情報は入力しないでください。
   </p>
 </div>
 
@@ -358,8 +409,13 @@ const DEP={
   18:'非がんの慢性疾患が中心で、長期に経過する患者が多い。',
   24:'老衰・慢性期など、長期に安定して経過する患者が中心。患者数は積み上がりやすい。'
 };
-const state={mode:'new',new:10,facr:30,mu:12,kyoka:'bed',jujitsu:false,home:25,fac:15,years:1,events:[],customPrice:false,pHome:90000,pFac:35000};
+const state={
+  mode:'new',new:10,facr:30,mu:12,kyoka:'bed',jujitsu:false,home:25,fac:15,years:1,events:[],
+  customPrice:false,pHome:90000,pFac:35000,
+  devicePatients:0,monthlyAddonRevenue:0,emergencyVisits:0,terminalCases:0,profileEnabled:false
+};
 let estMode='simple';
+let lastEstimate=null;
 
 // 自動単価: 基準 居宅8万/施設3万 に強化型・充実体制加算を加算
 function autoPrice(){
@@ -378,6 +434,55 @@ function intakeAt(t){ // 1-based month
   for(const e of state.events){ if(e.month<=t) v+=e.delta; }
   return Math.max(0,v);
 }
+
+function deriveProfile({baselinePatients,devicePatients,monthlyAddonRevenue,emergencyVisits,terminalCases}){
+  const integerInputs=[devicePatients,monthlyAddonRevenue,emergencyVisits,terminalCases];
+  if(!Number.isFinite(baselinePatients)||baselinePatients<0||
+     integerInputs.some(value=>!Number.isSafeInteger(value)||value<0)){
+    return {
+      ok:false,code:'invalid-input',hasInput:false,baselinePatients:0,
+      deviceRate:0,addonPerPatient:0,emergencyRate:0,terminalRate:0
+    };
+  }
+  const hasInput=integerInputs.some(value=>value>0);
+  if(baselinePatients===0){
+    return {
+      ok:!hasInput,code:hasInput?'missing-baseline':null,hasInput,baselinePatients,
+      deviceRate:0,addonPerPatient:0,emergencyRate:0,terminalRate:0
+    };
+  }
+  const deviceValid=devicePatients<=baselinePatients;
+  return {
+    ok:deviceValid,
+    code:deviceValid?null:'device-over-total',
+    hasInput,
+    baselinePatients,
+    deviceRate:deviceValid?devicePatients/baselinePatients:0,
+    addonPerPatient:monthlyAddonRevenue/baselinePatients,
+    emergencyRate:emergencyVisits/baselinePatients,
+    terminalRate:terminalCases/baselinePatients
+  };
+}
+
+function currentProfile(){
+  return deriveProfile({
+    baselinePatients:state.home+state.fac,
+    devicePatients:state.devicePatients,
+    monthlyAddonRevenue:state.monthlyAddonRevenue,
+    emergencyVisits:state.emergencyVisits,
+    terminalCases:state.terminalCases
+  });
+}
+
+function profileCanApply(profile=currentProfile()){
+  return profile.ok&&profile.hasInput&&profile.baselinePatients>0;
+}
+
+function setProfileSensitiveState(key,value){
+  if(state[key]!==value)state.profileEnabled=false;
+  state[key]=value;
+}
+
 function compute(){
   const M=state.years*12;
   const muH=state.mu, muF=24;
@@ -385,6 +490,8 @@ function compute(){
   const custom=state.customPrice;
   const ap=autoPrice();
   const pH=custom?state.pHome:ap.h;
+  const profile=currentProfile();
+  const applyProfile=state.profileEnabled&&profileCanApply(profile);
   const rows=[];
   for(let t=1;t<=M;t++){
     let hc=0,fc=0;
@@ -398,9 +505,17 @@ function compute(){
     // 施設単価: 任意単価入力時はそれを全期間に適用。自動時は新規立ち上げの開始3か月を基準(3.0万)で立ち上げ
     const ramp=(!custom && state.mode==='new'&&t<=3);
     const pF=custom?state.pFac:(ramp?30000:ap.f);
-    const med=pH*home+pF*fac;
+    const total=home+fac;
+    const medBase=pH*home+pF*fac;
+    const addon=applyProfile?profile.addonPerPatient*total:0;
+    const med=medBase+addon;
     const kaigo=(home+fac)*0.9*2*3000;
-    rows.push({t,home,fac,total:home+fac,med,kaigo,rev:med+kaigo,intake:intakeAt(t)});
+    rows.push({
+      t,home,fac,total,medBase,addon,med,kaigo,rev:med+kaigo,intake:intakeAt(t),
+      device:applyProfile?profile.deviceRate*total:0,
+      emergency:applyProfile?profile.emergencyRate*total:0,
+      terminal:applyProfile?profile.terminalRate*total:0
+    });
   }
   for(let i=1;i<rows.length;i++){ rows[i].out=rows[i].intake-(rows[i].total-rows[i-1].total); }
   rows[0].out=0;
@@ -458,7 +573,7 @@ function chartRevenue(rows){
     xlab+=`<text x="${cx.toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--faint)">${mlabel(i)}</text>`;});
   if(state.years>1){for(let yb=12;yb<n;yb+=12){const xx=pl+iw*yb/n;
     ydiv+=`<line x1="${xx.toFixed(1)}" y1="${pt}" x2="${xx.toFixed(1)}" y2="${pt+ih}" stroke="var(--border)" stroke-dasharray="3 3"/>`;}}
-  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="月別診療報酬">
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="月別診療報酬のモデル試算">
     ${grid}${ydiv}${lbl}${bars}${xlab}
     <text x="${pl-8}" y="12" text-anchor="end" font-size="10" fill="var(--faint)">万円</text></svg>`;
 }
@@ -468,18 +583,38 @@ function render(){
   const rows=compute();
   const n=rows.length;
   const sum=k=>rows.reduce((a,r)=>a+r[k],0);
-  const aMed=sum('med'),aKaigo=sum('kaigo'),aTot=aMed+aKaigo;
+  const aMed=sum('med'),aKaigo=sum('kaigo'),aAddon=sum('addon'),aTot=aMed+aKaigo;
   const last=rows[n-1];
-  document.getElementById('t-annual-k').textContent=state.years>1?'3年累計 診療報酬 合計':'年間 診療報酬 合計';
+  document.getElementById('t-annual-k').textContent=state.years>1?'3年累計 診療報酬 試算':'年間 診療報酬 試算';
   document.getElementById('t-pt-k').textContent='期末 実患者数';
   document.getElementById('t-annual').textContent=man(aTot);
   document.getElementById('t-annual-yen').textContent='¥'+nf(Math.round(aTot));
   document.getElementById('t-med').textContent=man(aMed);
-  document.getElementById('t-med-pct').textContent=(aMed/aTot*100).toFixed(0)+'%';
+  document.getElementById('t-med-pct').textContent=aTot>0
+    ?(aMed/aTot*100).toFixed(0)+'%'+(aAddon>0?'（追加 '+man(aAddon)+'万円）':'')
+    :'–';
   document.getElementById('t-kaigo').textContent=man(aKaigo);
-  document.getElementById('t-kaigo-pct').textContent=(aKaigo/aTot*100).toFixed(0)+'%';
+  document.getElementById('t-kaigo-pct').textContent=aTot>0?(aKaigo/aTot*100).toFixed(0)+'%':'–';
   document.getElementById('t-pt').textContent=nf(Math.round(last.total));
-  document.getElementById('t-pt-rev').textContent='最終月 ¥'+nf(Math.round(last.rev));
+  document.getElementById('t-pt-rev').textContent='最終月 試算 ¥'+nf(Math.round(last.rev));
+
+  const profile=currentProfile();
+  const profileApplied=state.profileEnabled&&profileCanApply(profile);
+  const ps=document.getElementById('profilesum');
+  if(profile.hasInput){
+    ps.style.display='';
+    const devicePct=profile.baselinePatients>0&&state.devicePatients<=profile.baselinePatients
+      ?(profile.deviceRate*100).toFixed(1)+'%'
+      :'–';
+    ps.innerHTML=
+      `<div class="ys"><div class="yl">デバイス管理患者割合</div><div class="yv">${devicePct}</div><div class="yd">現在 ${nf(state.devicePatients)}人 / ${nf(profile.baselinePatients)}人</div></div>`+
+      `<div class="ys"><div class="yl">追加収益の換算単価</div><div class="yv">${nf(Math.round(profile.addonPerPatient))}<span class="u" style="font-size:12px;color:var(--muted)"> 円/人月</span></div><div class="yd">${profileApplied?'予測期間合計 '+man(aAddon)+'万円':'予測には未反映'}</div></div>`+
+      `<div class="ys"><div class="yl">期末 緊急往診</div><div class="yv">${profileApplied?nf(last.emergency,1):'–'}<span class="u" style="font-size:12px;color:var(--muted)">${profileApplied?' 件/月':''}</span></div><div class="yd">現在 ${nf(state.emergencyVisits)}件/月${profileApplied?'から比例':'（未反映）'}</div></div>`+
+      `<div class="ys"><div class="yl">期末 看取り</div><div class="yv">${profileApplied?nf(last.terminal,1):'–'}<span class="u" style="font-size:12px;color:var(--muted)">${profileApplied?' 件/月':''}</span></div><div class="yd">現在 ${nf(state.terminalCases)}件/月${profileApplied?'から比例':'（未反映）'}</div></div>`;
+  }else{
+    ps.style.display='none';
+    ps.innerHTML='';
+  }
 
   // year summary (3yr)
   const ys=document.getElementById('yearsum');
@@ -490,7 +625,7 @@ function render(){
       const seg=rows.slice(yi*12,yi*12+12);
       const rev=seg.reduce((a,r)=>a+r.rev,0);
       const endPt=Math.round(seg[seg.length-1].total);
-      html+=`<div class="ys"><div class="yl">${yi+1}年目 診療報酬</div><div class="yv">${man(rev)}<span class="u" style="font-size:12px;color:var(--muted)"> 万円</span></div><div class="yd">期末 ${endPt} 人</div></div>`;
+      html+=`<div class="ys"><div class="yl">${yi+1}年目 診療報酬 試算</div><div class="yv">${man(rev)}<span class="u" style="font-size:12px;color:var(--muted)"> 万円</span></div><div class="yd">期末 ${endPt} 人</div></div>`;
     }
     ys.innerHTML=html;
   } else ys.style.display='none';
@@ -503,32 +638,140 @@ function render(){
   const head='<thead><tr><th>項目</th>'+rows.map((r,i)=>`<th class="${yb(i).trim()}">${state.years>1?(Math.floor(i/12)+1)+'年'+((i%12)+1)+'月':(i+1)+'月'}</th>`).join('')+'<th>合計</th></tr></thead>';
   const rowP=(label,fn,cls='')=>`<tr class="${cls}"><td>${label}</td>${rows.map((r,i)=>`<td class="${yb(i).trim()}">${fn(r)}</td>`).join('')}<td></td></tr>`;
   const rowM=(label,fn,tot,cls='')=>`<tr class="${cls}"><td>${label}</td>${rows.map((r,i)=>`<td class="${yb(i).trim()}">${nf(Math.round(fn(r)))}</td>`).join('')}<td>${nf(Math.round(tot))}</td></tr>`;
+  const profileRows=
+    (profileApplied&&profile.deviceRate>0?rowP('デバイス管理患者（推計）',r=>nf(r.device,1)):'')+
+    (profileApplied&&state.emergencyVisits>0?rowP('緊急往診（推計件数）',r=>nf(r.emergency,1)):'')+
+    (profileApplied&&state.terminalCases>0?rowP('看取り（推計件数）',r=>nf(r.terminal,1)):'');
+  const medicalRows=aAddon>0
+    ?rowM('医科 基本収益（円）',r=>r.medBase,sum('medBase'),'rev')+
+      rowM('追加収益（円）',r=>r.addon,aAddon,'rev')+
+      rowM('医科 合計（円）',r=>r.med,aMed,'rev')
+    :rowM('医科（円）',r=>r.med,aMed,'rev');
   const body='<tbody>'+
     rowP('実患者数 居宅',r=>nf(Math.round(r.home)))+
     rowP('実患者数 施設',r=>nf(Math.round(r.fac)))+
     rowP('実患者数 合計',r=>nf(Math.round(r.total)))+
     rowP('新規（人）',r=>nf(Math.round(r.intake)))+
     rowP('退出（人）',r=>nf(Math.round(r.out)),'out')+
-    rowM('医科（円）',r=>r.med,aMed,'rev')+
+    profileRows+
+    medicalRows+
     rowM('介護（円）',r=>r.kaigo,aKaigo,'rev')+
-    rowM('診療報酬 合計',r=>r.rev,aTot,'tot rev')+
+    rowM('診療報酬 試算合計',r=>r.rev,aTot,'tot rev')+
     '</tbody>';
   document.getElementById('tbl').innerHTML=head+body;
   syncControls();
 }
 function renderEvents(){
   const box=document.getElementById('events');
+  const forecastMonths=state.years*12,maxEventMonth=36;
+  state.events.forEach(e=>{
+    const month=Number(e.month),delta=Number(e.delta);
+    e.month=Math.min(maxEventMonth,Math.max(1,Number.isFinite(month)?Math.round(month):1));
+    e.delta=Number.isFinite(delta)?Math.round(delta):0;
+  });
   box.innerHTML=state.events.map((e,i)=>
-    `<div class="evrow"><input type="number" data-i="${i}" data-f="month" value="${e.month}" min="1" max="${state.years*12}"> か月目から <input type="number" data-i="${i}" data-f="delta" value="${e.delta}"> 人 <button class="x" data-del="${i}">✕</button></div>`
+    `<div class="evrow"><input type="number" data-i="${i}" data-f="month" value="${e.month}" min="1" max="${maxEventMonth}" step="1"> か月目から <input type="number" data-i="${i}" data-f="delta" value="${e.delta}" step="1"> 人 <span class="evnote">${e.month>forecastMonths?'予測期間外':''}</span><button class="x" data-del="${i}">✕</button></div>`
   ).join('');
-  box.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',ev=>{
+  const updateEvent=ev=>{
     const i=+ev.target.dataset.i,f=ev.target.dataset.f;
-    state.events[i][f]=Math.round(+ev.target.value||0);render();
-  }));
+    if(!state.events[i])return;
+    const raw=Number(ev.target.value);
+    if(ev.target.value.trim()===''||!Number.isFinite(raw)){
+      if(ev.type==='change')ev.target.value=String(state.events[i][f]);
+      return;
+    }
+    const value=f==='month'?Math.min(maxEventMonth,Math.max(1,Math.round(raw))):Math.round(raw);
+    state.events[i][f]=value;
+    ev.target.value=String(value);
+    if(f==='month'){
+      const note=ev.target.parentElement?.querySelector('.evnote');
+      if(note)note.textContent=value>forecastMonths?'予測期間外':'';
+    }
+    render();
+  };
+  box.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input',updateEvent);
+    inp.addEventListener('change',updateEvent);
+  });
   box.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{
     state.events.splice(+b.dataset.del,1);renderEvents();render();
   }));
 }
+
+const PROFILE_FIELDS={
+  'profile-device':{key:'devicePatients',max:1000000},
+  'profile-addon':{key:'monthlyAddonRevenue',max:1000000000000},
+  'profile-emergency':{key:'emergencyVisits',max:1000000},
+  'profile-terminal':{key:'terminalCases',max:1000000}
+};
+
+function profileInputError(){
+  const warning=document.getElementById('profile-warning');
+  warning.textContent='月次集計値は0以上の整数で入力してください。患者名や患者別データは入力しません。';
+  warning.className='profilewarning show';
+}
+
+function updateProfileInput(event){
+  const config=PROFILE_FIELDS[event.target.id];
+  if(!config)return;
+  const raw=event.target.value.trim();
+  const value=raw===''?NaN:Number(raw);
+  if(!Number.isSafeInteger(value)||value<0||value>config.max){
+    state.profileEnabled=false;
+    if(event.type==='change'){
+      event.target.value=String(state[config.key]);
+      event.target.removeAttribute('aria-invalid');
+      render();
+    }else{
+      render();
+      event.target.value=raw;
+      event.target.setAttribute('aria-invalid','true');
+      profileInputError();
+    }
+    return;
+  }
+  event.target.removeAttribute('aria-invalid');
+  setProfileSensitiveState(config.key,value);
+  render();
+}
+
+function syncProfileControls(){
+  Object.entries(PROFILE_FIELDS).forEach(([id,config])=>{
+    const input=document.getElementById(id);
+    if(input!==document.activeElement||input.value.trim()!=='')input.value=state[config.key];
+  });
+  const profile=currentProfile();
+  const canApply=profileCanApply(profile);
+  const apply=document.getElementById('profile-apply');
+  apply.checked=state.profileEnabled&&canApply;
+  apply.disabled=!canApply;
+  const warning=document.getElementById('profile-warning');
+  const warnings=[];
+  if(profile.code==='missing-baseline'){
+    warnings.push('開始時点患者数が0人のため、月次集計値を1人あたりへ換算できません。開始時点患者数を入力してください。');
+  }else if(profile.code==='device-over-total'){
+    warnings.push('デバイス管理患者数が開始時点患者数を超えています。この項目は予測へ反映していません。');
+  }else if(profile.code==='invalid-input'){
+    warnings.push('月次集計値は0以上の整数で入力してください。');
+  }
+  if(state.customPrice&&state.monthlyAddonRevenue>0){
+    warnings.push('任意単価に同じ加算・材料収益を含めている場合は二重計上になります。追加収益欄を0円にしてください。');
+  }
+  warning.textContent=warnings.join(' ');
+  warning.className=warnings.length?'profilewarning show':'profilewarning';
+
+  const derived=document.getElementById('profile-derived');
+  if(!profile.hasInput){
+    derived.innerHTML=`開始時点 <strong>${nf(profile.baselinePatients)}人</strong>。4項目は任意で、0のままなら既存の試算と同じです。`;
+  }else if(profile.baselinePatients===0){
+    derived.innerHTML='開始時点患者数を入力すると、月次集計値を患者1人あたりへ換算して予測へ反映します。';
+  }else{
+    derived.innerHTML=
+      `開始時点 <strong>${nf(profile.baselinePatients)}人</strong>を基準に、追加収益を <strong>${nf(Math.round(profile.addonPerPatient))}円/人月</strong>へ換算。`+
+      `緊急往診・看取り・デバイス管理患者は現在の患者割合が続く前提の参考値です。${state.profileEnabled&&canApply?'予測へ反映中です。':'まだ予測には反映していません。'}`;
+  }
+}
+
 function syncControls(){
   document.getElementById('v-new').innerHTML=state.new+'<small> 人/月</small>';
   document.getElementById('v-fac').innerHTML=state.facr+'<small> %</small>';
@@ -555,6 +798,7 @@ function syncControls(){
   document.getElementById('p0hint').textContent = state.mode==='new'
     ? 'シミュレーション開始月にすでに診ている実患者数（新規立ち上げなら通常は0〜少数）。既存患者は平均診療期間（施設は24か月）に沿って逓減します。'
     : '現在の実患者数を在宅・施設に分けて入力（推計ツールから一括反映も可能）。既存患者は平均診療期間（施設は24か月）に沿って逓減します。';
+  syncProfileControls();
 }
 
 // -------- estimator --------
@@ -562,41 +806,122 @@ function renderMonths(){
   const box=document.getElementById('e-months');
   if(box.children.length)return;
   let h='';
-  for(let i=0;i<12;i++)h+=`<input type="number" id="em-${i}" value="10" min="0" title="${i+1}か月目">`;
+  for(let i=0;i<12;i++)h+=`<input type="number" id="em-${i}" value="10" min="0" step="1" title="${i+1}か月目">`;
   box.innerHTML=h;
+  box.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',invalidateEstimate));
 }
-function estimate(){
-  const Pp=+document.getElementById('e-prev').value||0;
-  const Pn=+document.getElementById('e-now').value||0;
-  let model;
-  if(estMode==='monthly'){
-    const arr=[];for(let i=0;i<12;i++)arr.push(+document.getElementById('em-'+i).value||0);
-    // Pn = Pp*g(12/mu) + sum_{s=1..12} arr[s-1]*g((12-s+1)/mu)
-    model=mu=>{let acc=Pp*g(12/mu);for(let s=1;s<=12;s++)acc+=arr[s-1]*g((12-s+1)/mu);return acc;};
-  }else{
-    const N=+document.getElementById('e-new').value||0;
-    model=mu=>{let acc=0;for(let j=1;j<=12;j++)acc+=g(j/mu);return Pp*g(12/mu)+(N/12)*acc;};
+
+function isNonNegativeInteger(value){
+  return Number.isSafeInteger(value)&&value>=0;
+}
+function solveEstimate({mode,previousPatients,currentPatients,annualNewPatients,monthlyNewPatients}){
+  if(!['simple','monthly'].includes(mode)||
+     !isNonNegativeInteger(previousPatients)||
+     !isNonNegativeInteger(currentPatients)){
+    return {ok:false,code:'invalid-input'};
   }
+  let totalNew,model;
+  if(mode==='monthly'){
+    if(!Array.isArray(monthlyNewPatients)||monthlyNewPatients.length!==12||
+       monthlyNewPatients.some(v=>!isNonNegativeInteger(v))){
+      return {ok:false,code:'invalid-input'};
+    }
+    totalNew=monthlyNewPatients.reduce((sum,v)=>sum+v,0);
+    if(!Number.isSafeInteger(totalNew))return {ok:false,code:'invalid-input'};
+    // current = previous*g(12/mu) + monthly intake cohorts that remain at month 12
+    model=mu=>{
+      let acc=previousPatients*g(12/mu);
+      for(let s=1;s<=12;s++)acc+=monthlyNewPatients[s-1]*g((12-s+1)/mu);
+      return acc;
+    };
+  }else{
+    if(!isNonNegativeInteger(annualNewPatients))return {ok:false,code:'invalid-input'};
+    totalNew=annualNewPatients;
+    model=mu=>{
+      let acc=0;
+      for(let age=1;age<=12;age++)acc+=g(age/mu);
+      return previousPatients*g(12/mu)+(annualNewPatients/12)*acc;
+    };
+  }
+  const totalObserved=previousPatients+totalNew;
+  if(!Number.isSafeInteger(totalObserved))return {ok:false,code:'invalid-input'};
+  if(currentPatients>totalObserved)return {ok:false,code:'inconsistent-input'};
+  if(totalObserved===0)return {ok:false,code:'insufficient-data'};
+
   let lo=3,hi=60;
-  const fLo=model(lo)-Pn, fHi=model(hi)-Pn;
-  const out=document.getElementById('estout');
-  let mu, note='';
-  if(fLo>0){mu=lo;note='実績に対し患者数の残存が少なめです。推計は下限（約3か月）付近です。';}
-  else if(fHi<0){mu=hi;note='実績に対し患者数の残存が非常に多く、推計は上限（約60か月）を超えます。';}
-  else{for(let it=0;it<60;it++){const mid=(lo+hi)/2;(model(mid)-Pn>0)?hi=mid:lo=mid;}mu=(lo+hi)/2;}
+  const fLo=model(lo)-currentPatients,fHi=model(hi)-currentPatients;
+  const epsilon=1e-9;
+  if(fLo>epsilon)return {ok:false,code:'out-of-range',direction:'below'};
+  if(fHi<-epsilon)return {ok:false,code:'out-of-range',direction:'above'};
+
+  let mu;
+  if(Math.abs(fLo)<=epsilon)mu=lo;
+  else if(Math.abs(fHi)<=epsilon)mu=hi;
+  else{
+    for(let it=0;it<60;it++){
+      const mid=(lo+hi)/2;
+      if(model(mid)-currentPatients>0)hi=mid;
+      else lo=mid;
+    }
+    mu=(lo+hi)/2;
+  }
   const stages=[6,9,12,18,24];
   const nearest=stages.reduce((a,b)=>Math.abs(b-mu)<Math.abs(a-mu)?b:a);
+  return {ok:true,mu,nearest,currentPatients};
+}
+function invalidateEstimate(){
+  const out=document.getElementById('estout');
+  lastEstimate=null;
+  out.className='estout';
+  out.innerHTML='';
+}
+function estimatorValue(id){
+  const raw=document.getElementById(id).value.trim();
+  return raw===''?NaN:Number(raw);
+}
+function estimateErrorMessage(result){
+  if(result.code==='invalid-input')return '患者数と新規患者数は、0以上の整数で入力してください。';
+  if(result.code==='insufficient-data')return '1年前の患者数と新規患者数がともに0のため、診療期間を推計できません。';
+  if(result.code==='inconsistent-input')return '現在の患者数が「1年前の患者数＋この1年の新規患者数」を超えています。入力を確認してください。';
+  if(result.direction==='below')return 'この残存モデルでは3か月未満に相当します。入力・集計定義やモデル前提が実績と合っていない場合もあるため、内容を確認してください。';
+  return 'この残存モデルでは60か月超に相当します。入力・集計定義やモデル前提が実績と合っていない場合もあるため、内容を確認してください。';
+}
+function estimate(){
+  invalidateEstimate();
+  const input={
+    mode:estMode,
+    previousPatients:estimatorValue('e-prev'),
+    currentPatients:estimatorValue('e-now')
+  };
+  if(estMode==='monthly'){
+    input.monthlyNewPatients=[];
+    for(let i=0;i<12;i++)input.monthlyNewPatients.push(estimatorValue('em-'+i));
+  }else input.annualNewPatients=estimatorValue('e-new');
+
+  const result=solveEstimate(input);
+  const out=document.getElementById('estout');
   out.className='estout show';
-  out.innerHTML=`推計 平均診療期間 <b>${mu.toFixed(1)}</b> か月<br>`+
-    (note?`<span style="color:var(--muted)">${note}</span><br>`:'')+
-    `最も近い段階：<strong>${nearest}か月</strong>`+
+  if(!result.ok){
+    out.innerHTML=`<strong>推計不能</strong><br><span style="color:var(--muted)">${estimateErrorMessage(result)}</span>`;
+    return;
+  }
+  lastEstimate=result;
+  out.innerHTML=`モデル上の推計 平均診療期間 <b>${result.mu.toFixed(1)}</b> か月<br>`+
+    `最も近い段階：<strong>${result.nearest}か月</strong>`+
     `<button class="applybtn" id="applymu">この段階を適用</button>`+
     `<button class="applybtn" id="applypt">現在患者を開始時点に反映</button>`;
-  document.getElementById('applymu').addEventListener('click',()=>{state.mu=nearest;render();});
+  document.getElementById('applymu').addEventListener('click',()=>{
+    if(lastEstimate!==result)return;
+    state.mu=result.nearest;
+    render();
+  });
   document.getElementById('applypt').addEventListener('click',()=>{
-    state.fac=Math.round(Pn*state.facr/100);
-    state.home=Math.round(Pn-state.fac);
-    if(state.mode==='new'){state.mode='running';}
+    if(lastEstimate!==result)return;
+    const nextFac=Math.round(result.currentPatients*state.facr/100);
+    const nextHome=Math.round(result.currentPatients-nextFac);
+    setProfileSensitiveState('fac',nextFac);
+    setProfileSensitiveState('home',nextHome);
+    if(state.mode==='new')setProfileSensitiveState('mode','running');
     render();
   });
 }
@@ -605,24 +930,35 @@ function estimate(){
 document.getElementById('new').addEventListener('input',e=>{state.new=+e.target.value;render();});
 document.getElementById('facr').addEventListener('input',e=>{state.facr=+e.target.value;render();});
 document.querySelectorAll('#dep button').forEach(b=>b.addEventListener('click',()=>{state.mu=+b.dataset.mu;render();}));
-document.querySelectorAll('#kyoka button').forEach(b=>b.addEventListener('click',()=>{state.kyoka=b.dataset.k;render();}));
-document.querySelectorAll('#jujitsu button').forEach(b=>b.addEventListener('click',()=>{state.jujitsu=b.dataset.j==='yes';render();}));
+document.querySelectorAll('#kyoka button').forEach(b=>b.addEventListener('click',()=>{setProfileSensitiveState('kyoka',b.dataset.k);render();}));
+document.querySelectorAll('#jujitsu button').forEach(b=>b.addEventListener('click',()=>{setProfileSensitiveState('jujitsu',b.dataset.j==='yes');render();}));
 document.querySelectorAll('#span button').forEach(b=>b.addEventListener('click',()=>{state.years=+b.dataset.y;renderEvents();render();}));
-document.querySelectorAll('#mode button').forEach(b=>b.addEventListener('click',()=>{state.mode=b.dataset.m;render();}));
-document.querySelectorAll('#pricemode button').forEach(b=>b.addEventListener('click',()=>{state.customPrice=(b.dataset.pm==='custom');render();}));
-document.getElementById('pHome').addEventListener('input',e=>{state.pHome=Math.max(0,+e.target.value||0);render();});
-document.getElementById('pFac').addEventListener('input',e=>{state.pFac=Math.max(0,+e.target.value||0);render();});
+document.querySelectorAll('#mode button').forEach(b=>b.addEventListener('click',()=>{setProfileSensitiveState('mode',b.dataset.m);render();}));
+document.querySelectorAll('#pricemode button').forEach(b=>b.addEventListener('click',()=>{setProfileSensitiveState('customPrice',b.dataset.pm==='custom');render();}));
+document.getElementById('pHome').addEventListener('input',e=>{setProfileSensitiveState('pHome',Math.max(0,+e.target.value||0));render();});
+document.getElementById('pFac').addEventListener('input',e=>{setProfileSensitiveState('pFac',Math.max(0,+e.target.value||0));render();});
+Object.keys(PROFILE_FIELDS).forEach(id=>{
+  const input=document.getElementById(id);
+  input.addEventListener('input',updateProfileInput);
+  input.addEventListener('change',updateProfileInput);
+});
+document.getElementById('profile-apply').addEventListener('change',e=>{
+  state.profileEnabled=e.target.checked&&profileCanApply();
+  render();
+});
 document.querySelectorAll('#estmode button').forEach(b=>b.addEventListener('click',()=>{
   estMode=b.dataset.e;
+  invalidateEstimate();
   document.querySelectorAll('#estmode button').forEach(x=>x.classList.toggle('on',x.dataset.e===estMode));
   document.getElementById('est-simple').style.display=estMode==='simple'?'':'none';
   document.getElementById('est-monthly').style.display=estMode==='monthly'?'':'none';
   if(estMode==='monthly')renderMonths();
 }));
-document.getElementById('p0home').addEventListener('input',e=>{state.home=Math.max(0,+e.target.value||0);render();});
-document.getElementById('p0fac').addEventListener('input',e=>{state.fac=Math.max(0,+e.target.value||0);render();});
+['e-prev','e-new','e-now'].forEach(id=>document.getElementById(id).addEventListener('input',invalidateEstimate));
+document.getElementById('p0home').addEventListener('input',e=>{setProfileSensitiveState('home',Math.max(0,+e.target.value||0));render();});
+document.getElementById('p0fac').addEventListener('input',e=>{setProfileSensitiveState('fac',Math.max(0,+e.target.value||0));render();});
 document.querySelectorAll('.numbox button').forEach(b=>b.addEventListener('click',()=>{
-  const k=b.dataset.n==='home'?'home':'fac';state[k]=Math.max(0,state[k]+(+b.dataset.s));render();}));
+  const k=b.dataset.n==='home'?'home':'fac';setProfileSensitiveState(k,Math.max(0,state[k]+(+b.dataset.s)));render();}));
 document.getElementById('addev').addEventListener('click',()=>{
   const mo=Math.min(state.years*12,Math.max(1,(state.events.length?state.events[state.events.length-1].month+3:6)));
   state.events.push({month:mo,delta:3});renderEvents();render();});
