@@ -188,8 +188,9 @@ class FakeDocument {
     this.selectorElements = new Map();
     this.tableWrapper = new FakeElement(this, { className: 'tblwrap' });
     this.registerStaticMarkup(markup);
-    this.registerButtonGroup(markup, 'estmode');
-    this.registerButtonGroup(markup, 'span');
+    for (const group of ['mode', 'dep', 'kyoka', 'jujitsu', 'pricemode', 'estmode', 'span']) {
+      this.registerButtonGroup(markup, group);
+    }
   }
 
   registerStaticMarkup(markup) {
@@ -290,6 +291,14 @@ function publicFunction(context, name) {
 function assertInvalid(result, expectedCode) {
   assert.equal(result?.ok, false);
   assert.equal(result?.code, expectedCode);
+}
+
+function assertClose(actual, expected, message) {
+  const tolerance = Math.max(1e-9, Math.abs(expected) * 1e-12);
+  assert.ok(
+    Math.abs(actual - expected) <= tolerance,
+    message ?? `expected ${actual} to be within ${tolerance} of ${expected}`,
+  );
 }
 
 test('document declares UTF-8 before browser content is decoded', () => {
@@ -614,4 +623,341 @@ test('forecast horizon buttons do not rewrite future event months', () => {
   threeYears.dispatchEvent(new FakeEvent('click'));
   assert.equal(vm.runInContext('state.events[0].month', context), 24);
   assert.doesNotMatch(document.getElementById('events').innerHTML, /予測期間外/);
+});
+
+test('an empty unconfirmed profile leaves every legacy calculation unchanged', () => {
+  const { context } = loadApplication();
+  const compute = publicFunction(context, 'compute');
+  const rows = compute();
+
+  for (const row of rows) {
+    assert.equal(row.addon, 0);
+    assert.equal(row.device, 0);
+    assert.equal(row.emergency, 0);
+    assert.equal(row.terminal, 0);
+    assert.equal(row.med, row.medBase);
+    assert.equal(row.rev, row.medBase + row.kaigo);
+  }
+});
+
+test('entered profile values do not affect revenue, patients, or reference counts before confirmation', () => {
+  const { context } = loadApplication();
+  const compute = publicFunction(context, 'compute');
+  const legacyRows = compute();
+  vm.runInContext(
+    'Object.assign(state, {devicePatients: 10, monthlyAddonRevenue: 40000, emergencyVisits: 2, terminalCases: 1, profileEnabled: false})',
+    context,
+  );
+  const unconfirmedRows = compute();
+
+  assert.equal(unconfirmedRows.length, legacyRows.length);
+  for (let index = 0; index < legacyRows.length; index++) {
+    const legacy = legacyRows[index];
+    const current = unconfirmedRows[index];
+    assert.equal(current.home, legacy.home);
+    assert.equal(current.fac, legacy.fac);
+    assert.equal(current.total, legacy.total);
+    assert.equal(current.medBase, legacy.medBase);
+    assert.equal(current.med, legacy.med);
+    assert.equal(current.rev, legacy.rev);
+    assert.equal(current.addon, 0);
+    assert.equal(current.device, 0);
+    assert.equal(current.emergency, 0);
+    assert.equal(current.terminal, 0);
+  }
+});
+
+test('a confirmed profile adds proportional medical revenue without changing the patient forecast', () => {
+  const { context } = loadApplication();
+  const compute = publicFunction(context, 'compute');
+  vm.runInContext(
+    'Object.assign(state, {devicePatients: 10, monthlyAddonRevenue: 40000, emergencyVisits: 2, terminalCases: 1, profileEnabled: false})',
+    context,
+  );
+  const unconfirmedRows = compute();
+  vm.runInContext('state.profileEnabled = true', context);
+  const confirmedRows = compute();
+
+  for (let index = 0; index < unconfirmedRows.length; index++) {
+    const before = unconfirmedRows[index];
+    const after = confirmedRows[index];
+    assert.equal(after.home, before.home);
+    assert.equal(after.fac, before.fac);
+    assert.equal(after.total, before.total);
+    assert.equal(after.medBase, before.medBase);
+    assertClose(after.addon, after.total * 1000);
+    assertClose(after.med, after.medBase + after.addon);
+    assertClose(after.rev, after.med + after.kaigo);
+    assertClose(after.device, after.total * 0.25);
+    assertClose(after.emergency, after.total * 0.05);
+    assertClose(after.terminal, after.total * 0.025);
+  }
+});
+
+test('deriveProfile converts 40000 yen over the initial 40 patients to 1000 yen per patient-month', () => {
+  const { context } = loadApplication();
+  const deriveProfile = publicFunction(context, 'deriveProfile');
+  const profile = deriveProfile({
+    baselinePatients: 40,
+    devicePatients: 10,
+    monthlyAddonRevenue: 40000,
+    emergencyVisits: 2,
+    terminalCases: 1,
+  });
+
+  assert.equal(profile.ok, true);
+  assert.equal(profile.baselinePatients, 40);
+  assert.equal(profile.addonPerPatient, 1000);
+  assert.equal(profile.deviceRate, 0.25);
+  assert.equal(profile.emergencyRate, 0.05);
+  assert.equal(profile.terminalRate, 0.025);
+});
+
+test('deriveProfile reports device counts over baseline and nonzero profiles without a baseline', () => {
+  const { context } = loadApplication();
+  const deriveProfile = publicFunction(context, 'deriveProfile');
+  const overBaseline = deriveProfile({
+    baselinePatients: 40,
+    devicePatients: 41,
+    monthlyAddonRevenue: 0,
+    emergencyVisits: 0,
+    terminalCases: 0,
+  });
+  const missingBaseline = deriveProfile({
+    baselinePatients: 0,
+    devicePatients: 0,
+    monthlyAddonRevenue: 40000,
+    emergencyVisits: 0,
+    terminalCases: 0,
+  });
+  const emptyBaseline = deriveProfile({
+    baselinePatients: 0,
+    devicePatients: 0,
+    monthlyAddonRevenue: 0,
+    emergencyVisits: 0,
+    terminalCases: 0,
+  });
+
+  assertInvalid(overBaseline, 'device-over-total');
+  assert.equal(overBaseline.deviceRate, 0);
+  assertInvalid(missingBaseline, 'missing-baseline');
+  assert.equal(missingBaseline.addonPerPatient, 0);
+  assert.equal(emptyBaseline.ok, true);
+  assert.equal(emptyBaseline.code, null);
+  assert.equal(emptyBaseline.hasInput, false);
+});
+
+test('deriveProfile rejects invalid aggregate values in every profile field', async t => {
+  const { context } = loadApplication();
+  const deriveProfile = publicFunction(context, 'deriveProfile');
+  const valid = {
+    baselinePatients: 40,
+    devicePatients: 10,
+    monthlyAddonRevenue: 40000,
+    emergencyVisits: 2,
+    terminalCases: 1,
+  };
+  const fields = ['devicePatients', 'monthlyAddonRevenue', 'emergencyVisits', 'terminalCases'];
+  const invalidValues = [
+    ['negative', -1],
+    ['fractional', 1.5],
+    ['infinite', Infinity],
+    ['unsafe integer', Number.MAX_SAFE_INTEGER + 1],
+  ];
+
+  for (const field of fields) {
+    for (const [description, value] of invalidValues) {
+      await t.test(`${field}: ${description}`, () => {
+        assertInvalid(deriveProfile({ ...valid, [field]: value }), 'invalid-input');
+      });
+    }
+  }
+});
+
+test('blank profile inputs preserve state and restore the saved value on change', () => {
+  const { context, document } = loadApplication();
+  const fixtures = [
+    ['profile-device', 'devicePatients', 10],
+    ['profile-addon', 'monthlyAddonRevenue', 40000],
+    ['profile-emergency', 'emergencyVisits', 2],
+    ['profile-terminal', 'terminalCases', 1],
+  ];
+  vm.runInContext(
+    'Object.assign(state, {devicePatients: 10, monthlyAddonRevenue: 40000, emergencyVisits: 2, terminalCases: 1}); render()',
+    context,
+  );
+
+  for (const [id, key, expected] of fixtures) {
+    const input = document.getElementById(id);
+    input.value = '';
+    input.dispatchEvent(new FakeEvent('input'));
+    assert.equal(vm.runInContext(`state.${key}`, context), expected);
+    assert.equal(input.value, '');
+    assert.equal(input.getAttribute('aria-invalid'), 'true');
+
+    input.dispatchEvent(new FakeEvent('change'));
+    assert.equal(vm.runInContext(`state.${key}`, context), expected);
+    assert.equal(String(input.value), String(expected));
+    assert.equal(input.getAttribute('aria-invalid'), null);
+  }
+});
+
+test('the profile confirmation checkbox is the gate that starts proportional reflection', () => {
+  const { context, document } = loadApplication();
+  const compute = publicFunction(context, 'compute');
+  const addonInput = document.getElementById('profile-addon');
+  const confirmation = document.getElementById('profile-apply');
+
+  addonInput.value = '40000';
+  addonInput.dispatchEvent(new FakeEvent('input'));
+  assert.equal(vm.runInContext('state.monthlyAddonRevenue', context), 40000);
+  assert.equal(vm.runInContext('state.profileEnabled', context), false);
+  assert.equal(compute()[0].addon, 0);
+
+  confirmation.checked = true;
+  confirmation.dispatchEvent(new FakeEvent('change'));
+  assert.equal(vm.runInContext('state.profileEnabled', context), true);
+  assert.equal(compute()[0].addon, 40000);
+});
+
+test('custom all-inclusive pricing warns when additional revenue may be counted twice', () => {
+  const { context, document } = loadApplication();
+  vm.runInContext(
+    'Object.assign(state, {customPrice: true, monthlyAddonRevenue: 40000}); render()',
+    context,
+  );
+
+  const warning = document.getElementById('profile-warning');
+  assert.match(warning.textContent, /二重計上/);
+  assert.match(warning.textContent, /追加収益欄を0円/);
+  assert.equal(warning.classList.contains('show'), true);
+});
+
+test('changing a confirmed profile or its pricing baseline requires confirmation again', async t => {
+  const cases = [
+    {
+      name: 'monthly aggregate changes',
+      change(document) {
+        const input = document.getElementById('profile-addon');
+        input.value = '50000';
+        input.dispatchEvent(new FakeEvent('input'));
+      },
+    },
+    {
+      name: 'starting patient count changes',
+      change(document) {
+        const input = document.getElementById('p0home');
+        input.value = '26';
+        input.dispatchEvent(new FakeEvent('input'));
+      },
+    },
+    {
+      name: 'pricing mode changes',
+      change(document) {
+        const button = document.querySelectorAll('#pricemode button')
+          .find(candidate => candidate.dataset.pm === 'custom');
+        assert.ok(button);
+        button.dispatchEvent(new FakeEvent('click'));
+      },
+    },
+    {
+      name: 'automatic-price qualification changes',
+      change(document) {
+        const button = document.querySelectorAll('#kyoka button')
+          .find(candidate => candidate.dataset.k === 'bedless');
+        assert.ok(button);
+        button.dispatchEvent(new FakeEvent('click'));
+      },
+    },
+  ];
+
+  for (const fixture of cases) {
+    await t.test(fixture.name, () => {
+      const { context, document } = loadApplication();
+      const compute = publicFunction(context, 'compute');
+      vm.runInContext(
+        'Object.assign(state, {monthlyAddonRevenue: 40000, profileEnabled: true}); render()',
+        context,
+      );
+      assert.equal(compute()[0].addon, 40000);
+
+      fixture.change(document);
+
+      assert.equal(vm.runInContext('state.profileEnabled', context), false);
+      assert.equal(document.getElementById('profile-apply').checked, false);
+      assert.equal(compute()[0].addon, 0);
+    });
+  }
+});
+
+test('profile confirmation stays disabled until aggregate inputs can be converted safely', () => {
+  const { context, document } = loadApplication();
+  const confirmation = document.getElementById('profile-apply');
+  const addonInput = document.getElementById('profile-addon');
+  const deviceInput = document.getElementById('profile-device');
+  const homeInput = document.getElementById('p0home');
+  const facilityInput = document.getElementById('p0fac');
+
+  assert.equal(confirmation.disabled, true);
+
+  addonInput.value = '40000';
+  addonInput.dispatchEvent(new FakeEvent('input'));
+  assert.equal(confirmation.disabled, false);
+
+  deviceInput.value = '41';
+  deviceInput.dispatchEvent(new FakeEvent('input'));
+  assert.equal(confirmation.disabled, true);
+  assert.equal(vm.runInContext('state.profileEnabled', context), false);
+
+  deviceInput.value = '0';
+  deviceInput.dispatchEvent(new FakeEvent('input'));
+  assert.equal(confirmation.disabled, false);
+  confirmation.checked = true;
+  confirmation.dispatchEvent(new FakeEvent('change'));
+  assert.equal(vm.runInContext('state.profileEnabled', context), true);
+
+  homeInput.value = '0';
+  homeInput.dispatchEvent(new FakeEvent('input'));
+  facilityInput.value = '0';
+  facilityInput.dispatchEvent(new FakeEvent('input'));
+  assert.equal(confirmation.disabled, true);
+  assert.equal(confirmation.checked, false);
+  assert.equal(vm.runInContext('state.profileEnabled', context), false);
+});
+
+test('an invalid profile edit immediately removes previously confirmed revenue', () => {
+  const { context, document } = loadApplication();
+  const compute = publicFunction(context, 'compute');
+  const addonInput = document.getElementById('profile-addon');
+  const confirmation = document.getElementById('profile-apply');
+
+  addonInput.value = '40000';
+  addonInput.dispatchEvent(new FakeEvent('input'));
+  confirmation.checked = true;
+  confirmation.dispatchEvent(new FakeEvent('change'));
+  assert.equal(compute()[0].addon, 40000);
+
+  addonInput.value = '-1';
+  addonInput.dispatchEvent(new FakeEvent('input'));
+
+  assert.equal(vm.runInContext('state.profileEnabled', context), false);
+  assert.equal(confirmation.checked, false);
+  assert.equal(compute()[0].addon, 0);
+  assert.equal(addonInput.value, '-1');
+  assert.equal(addonInput.getAttribute('aria-invalid'), 'true');
+  assert.match(document.getElementById('profile-warning').textContent, /0以上の整数/);
+});
+
+test('the aggregate profile UI has no patient-name or free-text input', () => {
+  const profileMarkup = html.match(/<details\b[^>]*\bid="profile"[^>]*>[\s\S]*?<\/details>/i)?.[0];
+  assert.ok(profileMarkup, 'the aggregate profile section must exist');
+
+  const inputs = [...profileMarkup.matchAll(/<input\b([^>]*)>/gi)].map(match => match[1]);
+  const numberInputs = inputs.filter(attributes => /\btype="number"/i.test(attributes));
+  const checkboxInputs = inputs.filter(attributes => /\btype="checkbox"/i.test(attributes));
+  assert.equal(numberInputs.length, 4);
+  assert.equal(checkboxInputs.length, 1);
+  assert.equal(inputs.length, 5);
+  assert.doesNotMatch(profileMarkup, /<textarea\b|contenteditable\s*=|\btype=["']text["']/i);
+  assert.match(profileMarkup, /患者名や患者別台帳は不要/);
 });
