@@ -1,3 +1,4 @@
+<meta charset="UTF-8">
 <title>在宅医療センター KPI・PL予測シミュレーター</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
@@ -88,6 +89,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .events{margin-top:8px;display:flex;flex-direction:column;gap:7px}
 .evrow{display:flex;align-items:center;gap:6px;font-size:12.5px}
 .evrow input{width:52px;border:1px solid var(--border);background:var(--panel2);border-radius:7px;padding:5px 4px;text-align:center;font-family:inherit;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.evnote{font-size:11px;color:var(--danger);font-weight:700}
 .evrow .x{margin-left:auto;border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:16px;padding:2px 6px;font-family:inherit}
 .addev{border:1px dashed var(--border);background:transparent;color:var(--accent);border-radius:8px;padding:7px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;width:100%;margin-top:8px}
 .addev:hover{border-color:var(--accent)}
@@ -262,17 +264,17 @@ th.yb,td.yb{border-left:2px solid var(--border)}
             <button data-e="simple" class="on">簡易（年間累計）</button>
             <button data-e="monthly">月別実績で精密に</button>
           </div>
-          <div class="estrow"><span>1年前の実患者数</span><input type="number" id="e-prev" value="30" min="0"></div>
+          <div class="estrow"><span>1年前の実患者数</span><input type="number" id="e-prev" value="30" min="0" step="1"></div>
           <div id="est-simple">
-            <div class="estrow"><span>この1年の累計 新規患者数</span><input type="number" id="e-new" value="120" min="0"></div>
+            <div class="estrow"><span>この1年の累計 新規患者数</span><input type="number" id="e-new" value="120" min="0" step="1"></div>
           </div>
           <div id="est-monthly" style="display:none">
             <div class="hint" style="margin-top:0">直近12か月の月別 新規患者数（左上＝12か月前 → 右下＝直近）</div>
             <div class="mgrid" id="e-months"></div>
           </div>
-          <div class="estrow"><span>現在の実患者数</span><input type="number" id="e-now" value="95" min="0"></div>
+          <div class="estrow"><span>現在の実患者数</span><input type="number" id="e-now" value="95" min="0" step="1"></div>
           <button class="estbtn" id="estrun">推計する</button>
-          <div class="estout" id="estout"></div>
+          <div class="estout" id="estout" aria-live="polite"></div>
         </div>
       </details>
     </aside>
@@ -360,6 +362,7 @@ const DEP={
 };
 const state={mode:'new',new:10,facr:30,mu:12,kyoka:'bed',jujitsu:false,home:25,fac:15,years:1,events:[],customPrice:false,pHome:90000,pFac:35000};
 let estMode='simple';
+let lastEstimate=null;
 
 // 自動単価: 基準 居宅8万/施設3万 に強化型・充実体制加算を加算
 function autoPrice(){
@@ -475,9 +478,9 @@ function render(){
   document.getElementById('t-annual').textContent=man(aTot);
   document.getElementById('t-annual-yen').textContent='¥'+nf(Math.round(aTot));
   document.getElementById('t-med').textContent=man(aMed);
-  document.getElementById('t-med-pct').textContent=(aMed/aTot*100).toFixed(0)+'%';
+  document.getElementById('t-med-pct').textContent=aTot>0?(aMed/aTot*100).toFixed(0)+'%':'–';
   document.getElementById('t-kaigo').textContent=man(aKaigo);
-  document.getElementById('t-kaigo-pct').textContent=(aKaigo/aTot*100).toFixed(0)+'%';
+  document.getElementById('t-kaigo-pct').textContent=aTot>0?(aKaigo/aTot*100).toFixed(0)+'%':'–';
   document.getElementById('t-pt').textContent=nf(Math.round(last.total));
   document.getElementById('t-pt-rev').textContent='最終月 ¥'+nf(Math.round(last.rev));
 
@@ -518,13 +521,36 @@ function render(){
 }
 function renderEvents(){
   const box=document.getElementById('events');
+  const forecastMonths=state.years*12,maxEventMonth=36;
+  state.events.forEach(e=>{
+    const month=Number(e.month),delta=Number(e.delta);
+    e.month=Math.min(maxEventMonth,Math.max(1,Number.isFinite(month)?Math.round(month):1));
+    e.delta=Number.isFinite(delta)?Math.round(delta):0;
+  });
   box.innerHTML=state.events.map((e,i)=>
-    `<div class="evrow"><input type="number" data-i="${i}" data-f="month" value="${e.month}" min="1" max="${state.years*12}"> か月目から <input type="number" data-i="${i}" data-f="delta" value="${e.delta}"> 人 <button class="x" data-del="${i}">✕</button></div>`
+    `<div class="evrow"><input type="number" data-i="${i}" data-f="month" value="${e.month}" min="1" max="${maxEventMonth}" step="1"> か月目から <input type="number" data-i="${i}" data-f="delta" value="${e.delta}" step="1"> 人 <span class="evnote">${e.month>forecastMonths?'予測期間外':''}</span><button class="x" data-del="${i}">✕</button></div>`
   ).join('');
-  box.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',ev=>{
+  const updateEvent=ev=>{
     const i=+ev.target.dataset.i,f=ev.target.dataset.f;
-    state.events[i][f]=Math.round(+ev.target.value||0);render();
-  }));
+    if(!state.events[i])return;
+    const raw=Number(ev.target.value);
+    if(ev.target.value.trim()===''||!Number.isFinite(raw)){
+      if(ev.type==='change')ev.target.value=String(state.events[i][f]);
+      return;
+    }
+    const value=f==='month'?Math.min(maxEventMonth,Math.max(1,Math.round(raw))):Math.round(raw);
+    state.events[i][f]=value;
+    ev.target.value=String(value);
+    if(f==='month'){
+      const note=ev.target.parentElement?.querySelector('.evnote');
+      if(note)note.textContent=value>forecastMonths?'予測期間外':'';
+    }
+    render();
+  };
+  box.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input',updateEvent);
+    inp.addEventListener('change',updateEvent);
+  });
   box.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{
     state.events.splice(+b.dataset.del,1);renderEvents();render();
   }));
@@ -562,40 +588,119 @@ function renderMonths(){
   const box=document.getElementById('e-months');
   if(box.children.length)return;
   let h='';
-  for(let i=0;i<12;i++)h+=`<input type="number" id="em-${i}" value="10" min="0" title="${i+1}か月目">`;
+  for(let i=0;i<12;i++)h+=`<input type="number" id="em-${i}" value="10" min="0" step="1" title="${i+1}か月目">`;
   box.innerHTML=h;
+  box.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',invalidateEstimate));
 }
-function estimate(){
-  const Pp=+document.getElementById('e-prev').value||0;
-  const Pn=+document.getElementById('e-now').value||0;
-  let model;
-  if(estMode==='monthly'){
-    const arr=[];for(let i=0;i<12;i++)arr.push(+document.getElementById('em-'+i).value||0);
-    // Pn = Pp*g(12/mu) + sum_{s=1..12} arr[s-1]*g((12-s+1)/mu)
-    model=mu=>{let acc=Pp*g(12/mu);for(let s=1;s<=12;s++)acc+=arr[s-1]*g((12-s+1)/mu);return acc;};
-  }else{
-    const N=+document.getElementById('e-new').value||0;
-    model=mu=>{let acc=0;for(let j=1;j<=12;j++)acc+=g(j/mu);return Pp*g(12/mu)+(N/12)*acc;};
+
+function isNonNegativeInteger(value){
+  return Number.isSafeInteger(value)&&value>=0;
+}
+function solveEstimate({mode,previousPatients,currentPatients,annualNewPatients,monthlyNewPatients}){
+  if(!['simple','monthly'].includes(mode)||
+     !isNonNegativeInteger(previousPatients)||
+     !isNonNegativeInteger(currentPatients)){
+    return {ok:false,code:'invalid-input'};
   }
+  let totalNew,model;
+  if(mode==='monthly'){
+    if(!Array.isArray(monthlyNewPatients)||monthlyNewPatients.length!==12||
+       monthlyNewPatients.some(v=>!isNonNegativeInteger(v))){
+      return {ok:false,code:'invalid-input'};
+    }
+    totalNew=monthlyNewPatients.reduce((sum,v)=>sum+v,0);
+    if(!Number.isSafeInteger(totalNew))return {ok:false,code:'invalid-input'};
+    // current = previous*g(12/mu) + monthly intake cohorts that remain at month 12
+    model=mu=>{
+      let acc=previousPatients*g(12/mu);
+      for(let s=1;s<=12;s++)acc+=monthlyNewPatients[s-1]*g((12-s+1)/mu);
+      return acc;
+    };
+  }else{
+    if(!isNonNegativeInteger(annualNewPatients))return {ok:false,code:'invalid-input'};
+    totalNew=annualNewPatients;
+    model=mu=>{
+      let acc=0;
+      for(let age=1;age<=12;age++)acc+=g(age/mu);
+      return previousPatients*g(12/mu)+(annualNewPatients/12)*acc;
+    };
+  }
+  const totalObserved=previousPatients+totalNew;
+  if(!Number.isSafeInteger(totalObserved))return {ok:false,code:'invalid-input'};
+  if(currentPatients>totalObserved)return {ok:false,code:'inconsistent-input'};
+  if(totalObserved===0)return {ok:false,code:'insufficient-data'};
+
   let lo=3,hi=60;
-  const fLo=model(lo)-Pn, fHi=model(hi)-Pn;
-  const out=document.getElementById('estout');
-  let mu, note='';
-  if(fLo>0){mu=lo;note='実績に対し患者数の残存が少なめです。推計は下限（約3か月）付近です。';}
-  else if(fHi<0){mu=hi;note='実績に対し患者数の残存が非常に多く、推計は上限（約60か月）を超えます。';}
-  else{for(let it=0;it<60;it++){const mid=(lo+hi)/2;(model(mid)-Pn>0)?hi=mid:lo=mid;}mu=(lo+hi)/2;}
+  const fLo=model(lo)-currentPatients,fHi=model(hi)-currentPatients;
+  const epsilon=1e-9;
+  if(fLo>epsilon)return {ok:false,code:'out-of-range',direction:'below'};
+  if(fHi<-epsilon)return {ok:false,code:'out-of-range',direction:'above'};
+
+  let mu;
+  if(Math.abs(fLo)<=epsilon)mu=lo;
+  else if(Math.abs(fHi)<=epsilon)mu=hi;
+  else{
+    for(let it=0;it<60;it++){
+      const mid=(lo+hi)/2;
+      if(model(mid)-currentPatients>0)hi=mid;
+      else lo=mid;
+    }
+    mu=(lo+hi)/2;
+  }
   const stages=[6,9,12,18,24];
   const nearest=stages.reduce((a,b)=>Math.abs(b-mu)<Math.abs(a-mu)?b:a);
+  return {ok:true,mu,nearest,currentPatients};
+}
+function invalidateEstimate(){
+  const out=document.getElementById('estout');
+  lastEstimate=null;
+  out.className='estout';
+  out.innerHTML='';
+}
+function estimatorValue(id){
+  const raw=document.getElementById(id).value.trim();
+  return raw===''?NaN:Number(raw);
+}
+function estimateErrorMessage(result){
+  if(result.code==='invalid-input')return '患者数と新規患者数は、0以上の整数で入力してください。';
+  if(result.code==='insufficient-data')return '1年前の患者数と新規患者数がともに0のため、診療期間を推計できません。';
+  if(result.code==='inconsistent-input')return '現在の患者数が「1年前の患者数＋この1年の新規患者数」を超えています。入力を確認してください。';
+  if(result.direction==='below')return 'この残存モデルでは3か月未満に相当します。入力・集計定義やモデル前提が実績と合っていない場合もあるため、内容を確認してください。';
+  return 'この残存モデルでは60か月超に相当します。入力・集計定義やモデル前提が実績と合っていない場合もあるため、内容を確認してください。';
+}
+function estimate(){
+  invalidateEstimate();
+  const input={
+    mode:estMode,
+    previousPatients:estimatorValue('e-prev'),
+    currentPatients:estimatorValue('e-now')
+  };
+  if(estMode==='monthly'){
+    input.monthlyNewPatients=[];
+    for(let i=0;i<12;i++)input.monthlyNewPatients.push(estimatorValue('em-'+i));
+  }else input.annualNewPatients=estimatorValue('e-new');
+
+  const result=solveEstimate(input);
+  const out=document.getElementById('estout');
   out.className='estout show';
-  out.innerHTML=`推計 平均診療期間 <b>${mu.toFixed(1)}</b> か月<br>`+
-    (note?`<span style="color:var(--muted)">${note}</span><br>`:'')+
-    `最も近い段階：<strong>${nearest}か月</strong>`+
+  if(!result.ok){
+    out.innerHTML=`<strong>推計不能</strong><br><span style="color:var(--muted)">${estimateErrorMessage(result)}</span>`;
+    return;
+  }
+  lastEstimate=result;
+  out.innerHTML=`モデル上の推計 平均診療期間 <b>${result.mu.toFixed(1)}</b> か月<br>`+
+    `最も近い段階：<strong>${result.nearest}か月</strong>`+
     `<button class="applybtn" id="applymu">この段階を適用</button>`+
     `<button class="applybtn" id="applypt">現在患者を開始時点に反映</button>`;
-  document.getElementById('applymu').addEventListener('click',()=>{state.mu=nearest;render();});
+  document.getElementById('applymu').addEventListener('click',()=>{
+    if(lastEstimate!==result)return;
+    state.mu=result.nearest;
+    render();
+  });
   document.getElementById('applypt').addEventListener('click',()=>{
-    state.fac=Math.round(Pn*state.facr/100);
-    state.home=Math.round(Pn-state.fac);
+    if(lastEstimate!==result)return;
+    state.fac=Math.round(result.currentPatients*state.facr/100);
+    state.home=Math.round(result.currentPatients-state.fac);
     if(state.mode==='new'){state.mode='running';}
     render();
   });
@@ -614,11 +719,13 @@ document.getElementById('pHome').addEventListener('input',e=>{state.pHome=Math.m
 document.getElementById('pFac').addEventListener('input',e=>{state.pFac=Math.max(0,+e.target.value||0);render();});
 document.querySelectorAll('#estmode button').forEach(b=>b.addEventListener('click',()=>{
   estMode=b.dataset.e;
+  invalidateEstimate();
   document.querySelectorAll('#estmode button').forEach(x=>x.classList.toggle('on',x.dataset.e===estMode));
   document.getElementById('est-simple').style.display=estMode==='simple'?'':'none';
   document.getElementById('est-monthly').style.display=estMode==='monthly'?'':'none';
   if(estMode==='monthly')renderMonths();
 }));
+['e-prev','e-new','e-now'].forEach(id=>document.getElementById(id).addEventListener('input',invalidateEstimate));
 document.getElementById('p0home').addEventListener('input',e=>{state.home=Math.max(0,+e.target.value||0);render();});
 document.getElementById('p0fac').addEventListener('input',e=>{state.fac=Math.max(0,+e.target.value||0);render();});
 document.querySelectorAll('.numbox button').forEach(b=>b.addEventListener('click',()=>{
